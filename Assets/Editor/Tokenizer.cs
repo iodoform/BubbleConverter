@@ -69,7 +69,16 @@ public class Tokenizer
 
     public TokenType nextTokenType(int offset)
     {
-        string nextToken = text[currentTextPosition+offset];
+        string nextToken;
+        try
+        {
+            nextToken = text[currentTextPosition+offset];
+        }
+        catch (System.IndexOutOfRangeException)
+        {
+            nextToken = null;
+        }
+        
         // SYMBOLか判定
         if(nextToken==":")
         {
@@ -80,16 +89,16 @@ public class Tokenizer
             return TokenType.ARROW;
         }
         // TRIGGERか判定
-        for(int i = currentTextPosition-1;i>=0;i--)
+        try
         {
-            if(text[i]!=" ")
+            if(text[currentTextPosition+offset-1]==":")
             {
-                if(text[i]==":")
-                {
-                    return TokenType.TRIGGER;
-                }
-                break;
+                return TokenType.TRIGGER;
             }
+        }
+        catch (System.IndexOutOfRangeException)
+        {
+            return TokenType.STATE;
         }
         return TokenType.STATE;
     }
@@ -99,7 +108,14 @@ public class Tokenizer
     }
     public string nextToken(int offset)
     {
-        return text[currentTextPosition+offset];
+        try
+        {
+            return text[currentTextPosition+offset];
+        }
+        catch (System.IndexOutOfRangeException)
+        {
+            return null;
+        }
     }
 
     static string ExtractAndReplace(string inputString, string regexPattern)

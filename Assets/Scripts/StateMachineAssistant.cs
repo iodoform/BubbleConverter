@@ -20,7 +20,7 @@ public class Transition<TState, TTrigger>
     public TTrigger Trigger { get; set; }
 }
 
-public class StateMachine<TState, TTrigger>
+public class StateMachineAssistant<TState, TTrigger>
     where TState : struct, IConvertible, IComparable
     where TTrigger : struct, IConvertible, IComparable
 {
@@ -36,7 +36,7 @@ public class StateMachine<TState, TTrigger>
     private Dictionary<object, StateMapping> _stateMappings = new Dictionary<object, StateMapping>();
     private Dictionary<TState, List<Transition<TState, TTrigger>>> _transitionLists = new Dictionary<TState, List<Transition<TState, TTrigger>>>();
     
-    public StateMachine(MonoBehaviour monoBehaviour, TState initialState)
+    public StateMachineAssistant(MonoBehaviour monoBehaviour, TState initialState)
     {
         _monoBehaviour = monoBehaviour;
 
