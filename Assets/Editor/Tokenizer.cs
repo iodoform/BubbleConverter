@@ -97,6 +97,10 @@ public class Tokenizer
     {
         return currentToken;
     }
+    public string nextToken(int offset)
+    {
+        return text[currentTextPosition+offset];
+    }
 
     static string ExtractAndReplace(string inputString, string regexPattern)
     {
