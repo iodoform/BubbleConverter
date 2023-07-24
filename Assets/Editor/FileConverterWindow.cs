@@ -7,6 +7,7 @@ public class FileConverterWindow : EditorWindow
 {
     private string inputFile;
     private string outputFolder;
+    private GameObject attach;
 
     [MenuItem("Custom Tools/File Converter")]
     private static void Init()
@@ -21,7 +22,7 @@ public class FileConverterWindow : EditorWindow
 
         inputFile = EditorGUILayout.TextField("Input File Path:", inputFile);
         outputFolder = EditorGUILayout.TextField("Output Folder Path:", outputFolder);
-
+        attach = (GameObject)EditorGUILayout.ObjectField(attach,typeof(GameObject),true);
         if (GUILayout.Button("Convert File"))
         {
             if (!File.Exists(inputFile))
@@ -34,12 +35,18 @@ public class FileConverterWindow : EditorWindow
             List<string> convertedContentArray = conv.CompileStateMachine();
 
             // Save each element in the convertedContentArray as a separate file in the specified output folder
-            int i = 0;
-            foreach(string code in convertedContentArray)
+            for(int i = 0;i<convertedContentArray.Count;i++)
             {
-                string outputFile = Path.Combine(outputFolder, $"output{i}.txt");
-                File.WriteAllText(outputFile, code);
-                i++;
+                if(i == 0)
+                {
+                    string outputFile = Path.Combine(outputFolder, $"StateMachine.cs");
+                    File.WriteAllText(outputFile, convertedContentArray[i]);
+                }
+                else
+                {
+                    string outputFile = Path.Combine(outputFolder, $"StateMachine.cs");
+                    File.WriteAllText(outputFile, convertedContentArray[i]);
+                }
             }
 
             EditorUtility.DisplayDialog("Conversion Complete", "File conversion completed successfully.", "OK");

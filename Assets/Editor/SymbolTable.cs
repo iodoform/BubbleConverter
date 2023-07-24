@@ -4,9 +4,9 @@ using UnityEngine;
 using System.Linq;
 public class SymbolTable
 {
-    private List<string> triggerTable;
-    private List<string> stateTable;
-    private List<Transition> transitionTable;
+    public List<string> triggerTable{get;private set;}
+    public List<string> stateTable{get;private set;}
+    public List<Transition> transitionTable{get;private set;}
     public SymbolTable()
     {
         triggerTable = new List<string>();
@@ -35,7 +35,7 @@ public class SymbolTable
             transitionTable.Add(transition);
         }
     }
-    private class Transition
+    public class Transition
     {
         public string fromState;
         public string toState;

@@ -4,6 +4,8 @@ using UnityEngine;
 using System;
 public class ABMachine : MonoBehaviour
 {
+
+// CompileTable
     public enum StateType
     {
         StateA,
@@ -15,17 +17,18 @@ public class ABMachine : MonoBehaviour
         GoA,
         GoB
     }
+// \CompileTable
 
-
-    private StateMachine<StateType, TriggerType> _stateMachine;
-
+    private StateMachineAssistant<StateType, TriggerType> _stateMachine;
+// CompileStart
     private void Start () {
         // StateMachineを生成
-        _stateMachine = new StateMachine<StateType, TriggerType>(this, StateType.StateA);
-
+        _stateMachine = new StateMachineAssistant<StateType, TriggerType>(this, StateType.StateA);
+        // CompileTransition
         // 遷移情報を登録
         _stateMachine.AddTransition(StateType.StateA, StateType.StateB, TriggerType.GoB);
         _stateMachine.AddTransition(StateType.StateB, StateType.StateA, TriggerType.GoA);
+        // \CompileTransition
         // Stateを生成してふるまいを登録
         foreach (StateType state in Enum.GetValues(typeof(StateType)))
         {
@@ -38,7 +41,9 @@ public class ABMachine : MonoBehaviour
             _stateMachine.SetupState(state,tmpState.OnEnter,tmpState.EnterRoutine,tmpState.OnExit,tmpState.ExitRoutine,tmpState.OnUpdate);
         }
     }
+// \CompileStart
 
+// CompileUpdate
     private void Update()
     {
         // トリガーの発火をチェック
@@ -48,7 +53,9 @@ public class ABMachine : MonoBehaviour
         // ステートマシンを更新
         _stateMachine.Update(Time.deltaTime);
     }
+// \CompileUpdate
 
+// CompileTriggerMethods
     // トリガーの発火を制御する関数
     private bool triggerGoA()
     {
@@ -60,3 +67,4 @@ public class ABMachine : MonoBehaviour
         return Input.GetKeyDown(KeyCode.B);
     }
 }
+// \CompileTriggerMethods
