@@ -10,7 +10,8 @@ public class Tokenizer
     {
         STATE,
         SYMBOL,
-        TRIGGER
+        TRIGGER,
+        ARROW
     }
     private string[] text;
     private int currentTextPosition = -1;
@@ -27,8 +28,8 @@ public class Tokenizer
         // トークンを分割
         Regex regex = new Regex(@"(-->|\n|:)");
         this.text = regex.Split(text);
-        // 長さが0の文字列を除外
-        this.text = this.text.Where(s => !string.IsNullOrEmpty(s)).ToArray();
+        // 長さが0の文字列と改行記号を除外
+        this.text = this.text.Where(s => (!string.IsNullOrEmpty(s))|(s!="\n")).ToArray();
     }
 
     public bool hasMoreTokens()
@@ -43,9 +44,40 @@ public class Tokenizer
     public TokenType tokenType()
     {
         // SYMBOLか判定
-        if(currentToken=="\n"|currentToken=="-->"|currentToken==":")
+        if(currentToken=="\n"|currentToken==":")
         {
             return TokenType.SYMBOL;
+        }
+        if(currentToken=="-->")
+        {
+            return TokenType.ARROW;
+        }
+        // TRIGGERか判定
+        for(int i = currentTextPosition-1;i>=0;i--)
+        {
+            if(text[i]!=" ")
+            {
+                if(text[i]==":")
+                {
+                    return TokenType.TRIGGER;
+                }
+                break;
+            }
+        }
+        return TokenType.STATE;
+    }
+
+    public TokenType nextTokenType(int offset)
+    {
+        string nextToken = text[currentTextPosition+offset];
+        // SYMBOLか判定
+        if(nextToken==":")
+        {
+            return TokenType.SYMBOL;
+        }
+        if(nextToken=="-->")
+        {
+            return TokenType.ARROW;
         }
         // TRIGGERか判定
         for(int i = currentTextPosition-1;i>=0;i--)

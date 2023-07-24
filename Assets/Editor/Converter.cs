@@ -25,16 +25,47 @@ public class Converter
         }
     }
 
-    public List<string> FileConvert()
+    public List<string> CompileStateMachine()
     {
         List<string> resultArray = new List<string>();
-        string code = "";
+        string code = @"using System.Collections;\n
+                    using System.Collections.Generic;\n
+                    using UnityEngine;\n
+                    using System;\n
+                    public class ABMachine : MonoBehaviour\n
+                    {\n";
+        // symbolTableを作成
+        SymbolTable symbolTable = new SymbolTable();
         while(tokenizer.hasMoreTokens())
         {
             tokenizer.advance();
-            code = code + "<" +tokenizer.tokenType().ToString()+ @">" + tokenizer.token()+ "</" +tokenizer.tokenType().ToString()+ ">" ;
+            symbolTable.define(tokenizer.tokenType(),tokenizer.token());
         }
         resultArray.Add(code);
         return resultArray;
+    }
+    public string CompileTransition()
+    {
+
+    }
+    public string CompileState()
+    {
+        
+    }
+    public string CompileTrigger()
+    {
+
+    }
+    public string CompilrUpdate()
+    {
+
+    }
+    public string CompileTriggerMethod()
+    {
+
+    }
+    public string CompileTable()
+    {
+
     }
 }

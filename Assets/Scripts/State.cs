@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class State
+public class State:MonoBehaviour
 {
     ///<summary>
     ///前の状態から現在の状態に遷移してきたときの処理

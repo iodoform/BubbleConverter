@@ -30,7 +30,11 @@ public class ABMachine : MonoBehaviour
         foreach (StateType state in Enum.GetValues(typeof(StateType)))
         {
             string stateName = Enum.GetName(typeof(StateType),state);
-            State tmpState = (State)Activator.CreateInstance(Type.GetType(stateName));
+            State tmpState = (State)gameObject.GetComponent(Type.GetType(stateName));
+            if(tmpState==null)
+            {
+                Debug.LogError($"{stateName}コンポーネントが{gameObject.name}にアタッチまたは有効化されていません．{stateName}コンポーネントを{gameObject.name}にアタッチまたは有効化してください．{stateName}コンポーネントが見つからない場合はCustom Tools > FileConverterWindow から再度mdファイルをコンパイルしてください．");
+            }
             _stateMachine.SetupState(state,tmpState.OnEnter,tmpState.EnterRoutine,tmpState.OnExit,tmpState.ExitRoutine,tmpState.OnUpdate);
         }
     }

@@ -31,7 +31,7 @@ public class FileConverterWindow : EditorWindow
             }
 
             Converter conv = new Converter(inputFile);
-            List<string> convertedContentArray = conv.FileConvert();
+            List<string> convertedContentArray = conv.CompileStateMachine();
 
             // Save each element in the convertedContentArray as a separate file in the specified output folder
             int i = 0;
