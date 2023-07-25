@@ -1,15 +1,18 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
-public class StateB : State
+using BubbleConverter;
+namespace testA
 {
-    public override void OnEnter()
+public class StateB:MonoBehaviour
+{
+    public  void OnEnter()
     {
         Debug.Log("Enter State B");
     }
-    public override void OnExit()
+    public  void OnExit()
     {
         Debug.Log("Exit State B");
     }
+}
 }

@@ -3,117 +3,242 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
 using System;
-
-public class Converter
+using System.Text.RegularExpressions;
+namespace BubbleConverter
 {
-    private string text = "";
-    private Tokenizer tokenizer;
-    private string initialState = null;
-    public Converter(string filepath)
+    public class Converter
     {
-        try
+        private string text = "";
+        private Tokenizer tokenizer;
+        private string initialState = null;
+        private SymbolTable symbolTable;
+        private string templateFilePath = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "Assets/Editor/StateTemplate.cs");
+        public Converter(string filepath)
         {
-            //ファイルをオープンする
-            using (StreamReader sr = new StreamReader(filepath))
+            try
             {
-                text = sr.ReadToEnd();
-                tokenizer = new Tokenizer(text);
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError(ex.Message);
-        }
-    }
-
-    public List<string> CompileStateMachine()
-    {
-        List<string> resultArray = new List<string>();
-        string code = @"using System.Collections;\n
-                    using System.Collections.Generic;\n
-                    using UnityEngine;\n
-                    using System;\n
-                    public class ABMachine : MonoBehaviour\n
-                    {\n";
-        // symbolTableを作成
-        SymbolTable symbolTable = new SymbolTable();
-        while(tokenizer.hasMoreTokens())
-        {
-            tokenizer.advance();
-            // stateとtriggerを定義
-            if(tokenizer.token() != "[*]") 
-            {
-                symbolTable.define(tokenizer.tokenType(),tokenizer.token());
-            }
-            // 遷移情報を登録
-            if(tokenizer.tokenType()==Tokenizer.TokenType.STATE && tokenizer.nextTokenType(1)==Tokenizer.TokenType.ARROW)
-            {
-                if(tokenizer.token() != "[*]")
+                //ファイルをオープンする
+                using (StreamReader sr = new StreamReader(filepath))
                 {
-                    if(tokenizer.nextToken(2)!="[*]")
+                    text = sr.ReadToEnd();
+                    tokenizer = new Tokenizer(text);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError(ex.Message);
+            }
+        }
+
+        public List<string> CompileStateMachine(string folderName)
+        {
+            List<string> resultArray = new List<string>();
+            string code = "using System.Collections;\n";
+            code += "using System.Collections.Generic;\n";
+            code += "using UnityEngine;\n";
+            code += "using System;\n";
+            code += "using BubbleConverter;\n";
+            code += $"namespace {MakePascalCase(folderName)}\n";
+            code += "{\n";
+            code += $"    public class {MakePascalCase(folderName)} : MonoBehaviour\n";
+            code += "    {\n";
+            // symbolTableを初期化
+            symbolTable = new SymbolTable();
+            while(tokenizer.hasMoreTokens())
+            {
+                tokenizer.advance();
+                // stateとtriggerを定義
+                if(tokenizer.token() != "[*]") 
+                {
+                    symbolTable.define(tokenizer.tokenType(),tokenizer.token());
+                }
+                // 遷移情報を登録
+                if(tokenizer.tokenType()==Tokenizer.TokenType.STATE && tokenizer.nextTokenType(1)==Tokenizer.TokenType.ARROW)
+                {
+                    if(tokenizer.token() != "[*]")
                     {
-                        if(tokenizer.nextToken(3)==":")
+                        if(tokenizer.nextToken(2)!="[*]")
                         {
-                            symbolTable.registerTransition(tokenizer.token(),tokenizer.nextToken(2),tokenizer.nextToken(4));
+                            if(tokenizer.nextToken(3)==":")
+                            {
+                                symbolTable.registerTransition(tokenizer.token(),tokenizer.nextToken(2),tokenizer.nextToken(4));
+                            }
+                            else
+                            {
+                                // triggerがない場合，新たにtriggerを生成
+                                string trigger = char.ToUpper(tokenizer.token()[0])+tokenizer.token().Substring(1)+"2"+char.ToUpper(tokenizer.nextToken(2)[0])+tokenizer.nextToken(2).Substring(1);
+                                symbolTable.registerTransition(tokenizer.token(),tokenizer.nextToken(2),trigger);
+                                symbolTable.define(Tokenizer.TokenType.TRIGGER,trigger);
+                            }
                         }
                         else
                         {
-                            // triggerがない場合，新たにtriggerを生成
-                            string trigger = char.ToUpper(tokenizer.token()[0])+tokenizer.token().Substring(1)+"2"+char.ToUpper(tokenizer.nextToken(2)[0])+tokenizer.nextToken(2).Substring(1);
-                            symbolTable.registerTransition(tokenizer.token(),tokenizer.nextToken(2),trigger);
-                            symbolTable.define(Tokenizer.TokenType.TRIGGER,trigger);
+                            Debug.LogError("終了状態[*]は使用できません．別の文字列に置き換えてください．");
                         }
                     }
                     else
                     {
-                        Debug.LogError("終了状態[*]は使用できません．別の文字列に置き換えてください．");
+                        initialState = tokenizer.nextToken(2);
                     }
+                }
+            }
+            if(initialState == null)
+            {
+                // initialStateの指定がない場合はsymbolTableの最初のStateを代入
+                initialState = symbolTable.stateTable[0];
+            }
+            //今後システムがより複雑化したときのために，indentを設定できるようにしておく
+            string indent = "        ";
+            code += CompileTable(indent);
+            code += "        private StateMachineAssistant<StateType, TriggerType> _stateMachine;\n";
+            code += CompileStart(indent);
+            code += CompileUpdate(indent);
+            code += CompileTriggerMethods(indent);
+            code += "    }\n";
+            code += "}\n";
+            resultArray.Add(code);
+            foreach (string state in symbolTable.stateTable)
+            {
+                resultArray.Add(CompileState(state, MakePascalCase(folderName)));
+            }
+            return resultArray;
+        }
+        private string CompileTransition(string indent = "")
+        {
+            string code = indent+"// 遷移情報を登録\n";
+            foreach(SymbolTable.Transition transition in symbolTable.transitionTable)
+            {
+                code += indent+$"_stateMachine.AddTransition(StateType.{transition.fromState}, StateType.{transition.toState}, TriggerType.{transition.trigger});\n";
+            }
+            return code;
+        }
+        private string CompileUpdate(string indent = "")
+        {
+            string code = indent+"private void Update()\n";
+            code += indent+"{\n";
+            code += indent+"    // トリガーの発火をチェック\n";
+            foreach(string trigger in symbolTable.triggerTable)
+            {
+                code += indent+$"    if (trigger{char.ToUpper(trigger[0])+trigger.Substring(1)}()) _stateMachine.ExecuteTrigger(TriggerType.{trigger});\n";
+            }
+
+            code += indent+"\n";
+            code += indent+"    // ステートマシンを更新\n";
+            code += indent+"    _stateMachine.Update(Time.deltaTime);\n";
+            code += indent+"}\n";
+            return code;
+        }
+        private string CompileTriggerMethods(string indent = "")
+        {
+            string code =indent+"// トリガーの発火を制御する関数\n";
+            foreach(string trigger in symbolTable.triggerTable)
+            {
+                code += indent+$"private bool trigger{char.ToUpper(trigger[0])+trigger.Substring(1)}()\n";
+                code += indent+"{\n";
+                code += indent+"    return true;\n";
+                code += indent+"}\n";
+            }
+            return code;
+        }
+        private string CompileTable(string indent = "")
+        {
+            string code = indent+"public enum StateType\n";
+            code += indent + "    {\n";
+            foreach(string state in symbolTable.stateTable)
+            {
+                code += indent+"    " + state + ",\n";
+            }
+            code += indent+"}\n";
+            code += indent+"public enum TriggerType\n";
+            code += indent+"{\n";
+            foreach(string trigger in symbolTable.triggerTable)
+            {
+                code += indent+"    " + trigger + ",\n";
+            }
+            code += indent+"}\n";
+            return code;
+        }
+        private string CompileStart(string indent = "")
+        {
+            string code = "private void Start ()\n";
+            code += indent+"{\n";
+            code += indent+"    // StateMachineを生成\n";
+            code += indent+$"    _stateMachine = new StateMachineAssistant<StateType, TriggerType>(this, StateType.{initialState});\n";
+            code += CompileTransition(indent+"    ");
+            code += indent+"    // Stateを生成してふるまいを登録\n";
+            code += indent+"    foreach (StateType state in Enum.GetValues(typeof(StateType)))\n";
+            code += indent+"    {\n";
+            code += indent+"        string stateName = Enum.GetName(typeof(StateType),state);\n";
+            code += indent+"        State tmpState = (State)gameObject.GetComponent(Type.GetType(GetType().Namespace+ \".\"+stateName));\n";
+            code += indent+"        if(tmpState==null)\n";
+            code += indent+"        {\n";
+            code += indent+"            Debug.LogError($\"{stateName}コンポーネントが{gameObject.name}にアタッチまたは有効化されていません．{stateName}コンポーネントを{gameObject.name}にアタッチまたは有効化してください．{stateName}コンポーネントが見つからない場合はCustom Tools > FileConverterWindow から再度mdファイルをコンパイルしてください．\");\n";
+            code += indent+"        }\n";
+            code += indent+"        _stateMachine.SetupState(state,tmpState.OnEnter,tmpState.EnterRoutine,tmpState.OnExit,tmpState.ExitRoutine,tmpState.OnUpdate);\n";
+            code += indent+"    }\n";
+            code += indent+"}\n";
+            return code;
+        }
+        private string CompileState(string state, string stateMachineName)
+        {
+            //Stateのテンプレートファイルをもとに新しいStateのクラスを作成
+
+            // ファイルが存在するか確認
+            if (!File.Exists(templateFilePath))
+            {
+                Debug.LogError("指定されたファイルが見つかりません: " + templateFilePath);
+                return null;
+            }
+
+            // ファイルの内容を読み込む
+            string fileContent = File.ReadAllText(templateFilePath);
+
+            // 正規表現を使って最初に出てくるnamespaceを抽出
+            Match nameMatch = Regex.Match(fileContent, @"namespace\s+(\w+)\b");
+
+            if (nameMatch.Success)
+            {
+                string currentNameSpace = nameMatch.Groups[1].Value;
+
+                // namespaceを新しいnamespaceに置き換える
+                fileContent = fileContent.Replace(currentNameSpace, stateMachineName);
+
+                // 正規表現を使って最初に出てくるpublic classのクラス名を抽出
+                Match match = Regex.Match(fileContent, @"public\s+class\s+(\w+)\b");
+
+                if (match.Success)
+                {
+                    string currentClassName = match.Groups[1].Value;
+
+                    // クラス名を新しいクラス名に置き換える
+                    string replacedContent = fileContent.Replace(currentClassName, state);
+
+                    // 変更後の内容を返す
+                    return replacedContent;
                 }
                 else
                 {
-                    initialState = tokenizer.nextToken(2);
+                    Debug.LogError("publicなclass定義が見つかりませんでした");
+                    return null;
                 }
             }
+            else
+            {
+                Debug.LogError("namespaceの定義が見つかりませんでした");
+                return null;
+            }
         }
-        if(initialState == null)
+        private string MakePascalCase(string text)
         {
-            // initialStateの指定がない場合はsymbolTableの最初のStateを代入
-            initialState = symbolTable.stateTable[0];
+            string[] extractedStringArray = text.Split(" ");
+            //単語の先頭を大文字に変えて分かち書きを連結
+            for(int i = 0;i<extractedStringArray.Length;i++)
+            {
+                extractedStringArray[i] = char.ToUpper(extractedStringArray[i][0])+extractedStringArray[i].Substring(1);
+            }
+            string joinedString = string.Join("",extractedStringArray);
+            string cleanedString = Regex.Replace(joinedString, @"\s+", "");
+            return cleanedString;
         }
-        code += CompileTable();
-        code += "private StateMachine<StateType, TriggerType> _stateMachine;\n";
-        code += CompileStart();
-        code += CompileUpdate();
-        code += CompileTriggerMethods();
-        resultArray.Add(code);
-        foreach (string state in symbolTable.stateTable)
-        {
-            resultArray.Add(CompileState(state));
-        }
-        return resultArray;
-    }
-    public string CompileTransition()
-    {
-
-    }
-    public string CompileUpdate()
-    {
-
-    }
-    public string CompileTriggerMethods()
-    {
-
-    }
-    public string CompileTable()
-    {
-
-    }
-    public string CompileStart()
-    {
-
-    }
-    public string CompileState(string state)
-    {
-
     }
 }
