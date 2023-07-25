@@ -3,145 +3,148 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Text.RegularExpressions;
 using System.Linq;
-
-public class Tokenizer
+namespace BubbleConverter
 {
-    public enum TokenType
+    public class Tokenizer
     {
-        STATE,
-        SYMBOL,
-        TRIGGER,
-        ARROW
-    }
-    private string[] text;
-    private int currentTextPosition = -1;
-    private string currentToken;
-    public Tokenizer(string text)
-    {
-        // コメント及び不要な部分を削除
-        text = Regex.Replace(text,@"%%.*\n|%%.*\r|stateDiagram-v2|```|\r|\r\n","\n");
-        Regex reg = new Regex("mermaid", RegexOptions.IgnoreCase);
-        text = reg.Replace(text,"");
-        // トリガーを分かち書きから連結
-        text = ExtractAndReplace(text,@":.*\n");
-        text = Regex.Replace(text,@"[\n\s]+","\n");
-        // トークンを分割
-        Regex regex = new Regex(@"(-->|\n|:)");
-        this.text = regex.Split(text);
-        // 長さが0の文字列と改行記号を除外
-        this.text = this.text.Where(s => (!string.IsNullOrEmpty(s))|(s!="\n")).ToArray();
-    }
+        public enum TokenType
+        {
+            STATE,
+            SYMBOL,
+            TRIGGER,
+            ARROW
+        }
+        private string[] text;
+        private int currentTextPosition = -1;
+        private string currentToken;
+        public Tokenizer(string text)
+        {
+            // コメント及び不要な部分を削除
+            text = Regex.Replace(text,@"%%.*\n|%%.*\r|stateDiagram-v2|```|\r|\r\n","\n");
+            Regex reg = new Regex("mermaid", RegexOptions.IgnoreCase);
+            text = reg.Replace(text,"");
+            // トリガーを分かち書きから連結
+            text = ExtractAndReplace(text,@":.*\n");
+            text = Regex.Replace(text,@"[\n\s]+","\n");
+            // トークンを分割
+            Regex regex = new Regex(@"(-->|\n|:)");
+            this.text = regex.Split(text);
+            // 長さが0の文字列と改行記号を除外
+            this.text = this.text.Where(s => !string.IsNullOrEmpty(s)).ToArray();
+            this.text = this.text.Where(s => !(s=="\n")).ToArray();
+        }
 
-    public bool hasMoreTokens()
-    {
-        return currentTextPosition+1<this.text.Length;
-    }
-    public void advance()
-    {
-        currentTextPosition+=1;
-        currentToken = text[currentTextPosition];
-    }
-    public TokenType tokenType()
-    {
-        // SYMBOLか判定
-        if(currentToken=="\n"|currentToken==":")
+        public bool hasMoreTokens()
         {
-            return TokenType.SYMBOL;
+            return currentTextPosition+1<this.text.Length;
         }
-        if(currentToken=="-->")
+        public void advance()
         {
-            return TokenType.ARROW;
+            currentTextPosition+=1;
+            currentToken = text[currentTextPosition];
         }
-        // TRIGGERか判定
-        for(int i = currentTextPosition-1;i>=0;i--)
+        public TokenType tokenType()
         {
-            if(text[i]!=" ")
+            // SYMBOLか判定
+            if(currentToken=="\n"|currentToken==":")
             {
-                if(text[i]==":")
+                return TokenType.SYMBOL;
+            }
+            if(currentToken=="-->")
+            {
+                return TokenType.ARROW;
+            }
+            // TRIGGERか判定
+            try
+            {
+                if(text[currentTextPosition-1]==":")
                 {
                     return TokenType.TRIGGER;
                 }
-                break;
             }
-        }
-        return TokenType.STATE;
-    }
-
-    public TokenType nextTokenType(int offset)
-    {
-        string nextToken;
-        try
-        {
-            nextToken = text[currentTextPosition+offset];
-        }
-        catch (System.IndexOutOfRangeException)
-        {
-            nextToken = null;
-        }
-        
-        // SYMBOLか判定
-        if(nextToken==":")
-        {
-            return TokenType.SYMBOL;
-        }
-        if(nextToken=="-->")
-        {
-            return TokenType.ARROW;
-        }
-        // TRIGGERか判定
-        try
-        {
-            if(text[currentTextPosition+offset-1]==":")
+            catch (System.IndexOutOfRangeException)
             {
-                return TokenType.TRIGGER;
+                return TokenType.STATE;
             }
-        }
-        catch (System.IndexOutOfRangeException)
-        {
             return TokenType.STATE;
         }
-        return TokenType.STATE;
-    }
-    public string token()
-    {
-        return currentToken;
-    }
-    public string nextToken(int offset)
-    {
-        try
-        {
-            return text[currentTextPosition+offset];
-        }
-        catch (System.IndexOutOfRangeException)
-        {
-            return null;
-        }
-    }
 
-    static string ExtractAndReplace(string inputString, string regexPattern)
-    {
-        // 正規表現オブジェクトを作成
-        Regex regex = new Regex(regexPattern);
-
-        // inputStringから正規表現で指定されたregexPatternのマッチを取得
-        MatchCollection matches = regex.Matches(inputString);
-
-        // regexPatternのマッチの空白文字を削除し，分かち書きを連結させて置換
-        foreach (Match match in matches)
+        public TokenType nextTokenType(int offset)
         {
-            string extractedString = match.Value;
-            string[] extractedStringArray = extractedString.Split(" ");
-            //単語の先頭を大文字に変えて分かち書きを連結
-            for(int i = 0;i<extractedStringArray.Length;i++)
+            string nextToken;
+            try
             {
-                extractedStringArray[i] = char.ToUpper(extractedStringArray[i][0])+extractedStringArray[i].Substring(1);
+                nextToken = text[currentTextPosition+offset];
             }
-            string joinedString = string.Join("",extractedStringArray);
-
-            string cleanedString = Regex.Replace(joinedString, @"\s+", "");
-            inputString = inputString.Replace(extractedString, cleanedString);
+            catch (System.IndexOutOfRangeException)
+            {
+                nextToken = null;
+            }
+            
+            // SYMBOLか判定
+            if(nextToken==":")
+            {
+                return TokenType.SYMBOL;
+            }
+            if(nextToken=="-->")
+            {
+                return TokenType.ARROW;
+            }
+            // TRIGGERか判定
+            try
+            {
+                if(text[currentTextPosition+offset-1]==":")
+                {
+                    return TokenType.TRIGGER;
+                }
+            }
+            catch (System.IndexOutOfRangeException)
+            {
+                return TokenType.STATE;
+            }
+            return TokenType.STATE;
+        }
+        public string token()
+        {
+            return currentToken;
+        }
+        public string nextToken(int offset)
+        {
+            try
+            {
+                return text[currentTextPosition+offset];
+            }
+            catch (System.IndexOutOfRangeException)
+            {
+                return null;
+            }
         }
 
-        return inputString;
+        static string ExtractAndReplace(string inputString, string regexPattern)
+        {
+            // 正規表現オブジェクトを作成
+            Regex regex = new Regex(regexPattern);
+
+            // inputStringから正規表現で指定されたregexPatternのマッチを取得
+            MatchCollection matches = regex.Matches(inputString);
+
+            // regexPatternのマッチの空白文字を削除し，分かち書きを連結させて置換
+            foreach (Match match in matches)
+            {
+                string extractedString = match.Value;
+                string[] extractedStringArray = extractedString.Split(" ");
+                //単語の先頭を大文字に変えて分かち書きを連結
+                for(int i = 0;i<extractedStringArray.Length;i++)
+                {
+                    extractedStringArray[i] = char.ToUpper(extractedStringArray[i][0])+extractedStringArray[i].Substring(1);
+                }
+                string joinedString = string.Join("",extractedStringArray);
+
+                string cleanedString = Regex.Replace(joinedString, @"\s+", "");
+                inputString = inputString.Replace(extractedString, cleanedString);
+            }
+
+            return inputString;
+        }
     }
 }
