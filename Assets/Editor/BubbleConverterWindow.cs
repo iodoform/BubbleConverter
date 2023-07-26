@@ -13,7 +13,8 @@ namespace BubbleConverter
         private string newFolderName;
         private List<string> compiledStateMachine;
         private string newFolderPath;
-        private bool compiledFlag = false;
+        private bool isCompilationRequested = false;
+        private bool isReloading = false;
 
         [MenuItem("Custom Tools/Bubble Converter")]
         private static void Init()
@@ -21,7 +22,15 @@ namespace BubbleConverter
             BubbleConverterWindow window = (BubbleConverterWindow)EditorWindow.GetWindow(typeof(BubbleConverterWindow));
             window.Show();
         }
+        private void OnEnable()
+        {
+            EditorApplication.update += Update;
+        }
 
+        private void OnDisable()
+        {
+            EditorApplication.update -= Update;
+        }
         private void OnGUI()
         {
             GUILayout.Label("Bubble Converter", EditorStyles.boldLabel);
@@ -30,7 +39,6 @@ namespace BubbleConverter
             {
                 string initialPath = string.IsNullOrEmpty(inputFile) ? Application.dataPath : inputFile;
                 inputFile = EditorUtility.OpenFilePanel("Select Input File", initialPath, "md");
-                compiledFlag = false;
             }
             if (!string.IsNullOrEmpty(inputFile))
             {
@@ -52,7 +60,6 @@ namespace BubbleConverter
                 {
                     // Convert the selected output folder path to a relative path within the Unity project's Asset folder
                     outputFolder = "Assets" + outputFolder.Substring(Application.dataPath.Length);
-                    compiledFlag = false;
                 }
             }
             if (!string.IsNullOrEmpty(outputFolder))
@@ -94,35 +101,8 @@ namespace BubbleConverter
                     }
                     // スクリプトをコンパイル
                     CompilationPipeline.RequestScriptCompilation();
-                    EditorUtility.DisplayDialog("Conversion Complete", "File conversion completed successfully.", "OK");
-                    compiledFlag = true;
+                    isCompilationRequested = true;
                 }
-                if(compiledFlag)
-                {
-                    if (GUILayout.Button("Generate State Machine"))
-                    {
-                        // Create a new empty GameObject named "State Machine" in the scene
-                        GameObject stateMachineGO = new GameObject("State Machine");
-                        // コンポーネント化してアタッチ
-                        for (int i = 0; i < compiledStateMachine.Count; i++)
-                        {
-                            // Extract class name using regex
-                            string className = ExtractClassName(compiledStateMachine[i]);
-
-                            // Generate file name using the extracted class name
-                            string fileName = Path.Combine(newFolderPath, $"{className}.cs");
-                            // Create a C# script asset from the output file
-                            MonoScript scriptAsset = AssetDatabase.LoadAssetAtPath<MonoScript>(fileName);
-                            if (scriptAsset != null)
-                            {
-                                // Attach the script component to the "State Machine" GameObject
-                                stateMachineGO.AddComponent(scriptAsset.GetClass());
-                            }
-                        }
-                        EditorUtility.DisplayDialog("Generation complete", "State Machine generation completed successfully.", "OK");
-                    }
-                }
-                
             }
         }
 
@@ -152,5 +132,44 @@ namespace BubbleConverter
             }
             return "DefaultClassName";
         }
+        private  void Update()
+        {
+            if (EditorApplication.isCompiling && !isReloading)
+            {
+                isReloading = true;
+            }
+            else if (!EditorApplication.isCompiling && isReloading)
+            {
+                isReloading = false;
+                OnDomainReloaded();
+            }
+        }
+        private void OnDomainReloaded()
+        {
+            if (isCompilationRequested)
+            {
+                // Create a new empty GameObject named "State Machine" in the scene
+                GameObject stateMachineGO = new GameObject("State Machine");
+                // コンポーネント化してアタッチ
+                for (int i = 0; i < compiledStateMachine.Count; i++)
+                {
+                    // Extract class name using regex
+                    string className = ExtractClassName(compiledStateMachine[i]);
+                    // Generate file name using the extracted class name
+                    string fileName = Path.Combine(newFolderPath, $"{className}.cs");
+                    // Create a C# script asset from the output file
+                    MonoScript scriptAsset = AssetDatabase.LoadAssetAtPath<MonoScript>(fileName);
+                    if (scriptAsset != null)
+                    {
+                        // Attach the script component to the "State Machine" GameObject
+                        stateMachineGO.AddComponent(scriptAsset.GetClass());
+                    }
+                }
+                EditorUtility.DisplayDialog("Conversion Complete", "File conversion completed successfully.", "OK");
+                // 次の処理が完了したらフラグをリセット
+                isCompilationRequested = false;
+            }
+        }
+        
     }
 }
