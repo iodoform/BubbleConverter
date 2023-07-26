@@ -4,6 +4,7 @@ using UnityEngine;
 using System.IO;
 using System;
 using System.Text.RegularExpressions;
+using UnityEditor;
 namespace BubbleConverter
 {
     public class Converter
@@ -13,12 +14,14 @@ namespace BubbleConverter
         private string initialState = null;
         private SymbolTable symbolTable;
         private string templateFilePath = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "Assets/Editor/StateTemplate.cs");
-        public Converter(string filepath)
+        private string outputFolderPath;
+        public Converter(string inputFilePath, string outputFolderPath)
         {
+            this.outputFolderPath = outputFolderPath;
             try
             {
                 //ファイルをオープンする
-                using (StreamReader sr = new StreamReader(filepath))
+                using (StreamReader sr = new StreamReader(inputFilePath))
                 {
                     text = sr.ReadToEnd();
                     tokenizer = new Tokenizer(text);
@@ -82,10 +85,14 @@ namespace BubbleConverter
                     }
                 }
             }
+            //SymbolTableをJSON化して保存
+            string symbolTableJson = EditorJsonUtility.ToJson(symbolTable, true);
+            string fileName = Path.Combine(outputFolderPath, $"{MakePascalCase(folderName)}.JSON");
+            File.WriteAllText(fileName,symbolTableJson);
             if(initialState == null)
             {
                 // initialStateの指定がない場合はsymbolTableの最初のStateを代入
-                initialState = symbolTable.stateTable[0];
+                initialState = symbolTable.StateTable[0];
             }
             //今後システムがより複雑化したときのために，indentを設定できるようにしておく
             string indent = "        ";
@@ -97,7 +104,7 @@ namespace BubbleConverter
             code += "    }\n";
             code += "}\n";
             resultArray.Add(code);
-            foreach (string state in symbolTable.stateTable)
+            foreach (string state in symbolTable.StateTable)
             {
                 resultArray.Add(CompileState(state, MakePascalCase(folderName)));
             }
@@ -106,7 +113,7 @@ namespace BubbleConverter
         private string CompileTransition(string indent = "")
         {
             string code = indent+"// 遷移情報を登録\n";
-            foreach(SymbolTable.Transition transition in symbolTable.transitionTable)
+            foreach(SymbolTable.Transition transition in symbolTable.TransitionTable)
             {
                 code += indent+$"_stateMachine.AddTransition(StateType.{transition.fromState}, StateType.{transition.toState}, TriggerType.{transition.trigger});\n";
             }
@@ -117,7 +124,7 @@ namespace BubbleConverter
             string code = indent+"private void Update()\n";
             code += indent+"{\n";
             code += indent+"    // トリガーの発火をチェック\n";
-            foreach(string trigger in symbolTable.triggerTable)
+            foreach(string trigger in symbolTable.TriggerTable)
             {
                 code += indent+$"    if (trigger{char.ToUpper(trigger[0])+trigger.Substring(1)}()) _stateMachine.ExecuteTrigger(TriggerType.{trigger});\n";
             }
@@ -131,7 +138,7 @@ namespace BubbleConverter
         private string CompileTriggerMethods(string indent = "")
         {
             string code =indent+"// トリガーの発火を制御する関数\n";
-            foreach(string trigger in symbolTable.triggerTable)
+            foreach(string trigger in symbolTable.TriggerTable)
             {
                 code += indent+$"private bool trigger{char.ToUpper(trigger[0])+trigger.Substring(1)}()\n";
                 code += indent+"{\n";
@@ -144,14 +151,14 @@ namespace BubbleConverter
         {
             string code = indent+"public enum StateType\n";
             code += indent + "    {\n";
-            foreach(string state in symbolTable.stateTable)
+            foreach(string state in symbolTable.StateTable)
             {
                 code += indent+"    " + state + ",\n";
             }
             code += indent+"}\n";
             code += indent+"public enum TriggerType\n";
             code += indent+"{\n";
-            foreach(string trigger in symbolTable.triggerTable)
+            foreach(string trigger in symbolTable.TriggerTable)
             {
                 code += indent+"    " + trigger + ",\n";
             }
