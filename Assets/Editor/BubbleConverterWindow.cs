@@ -83,7 +83,7 @@ namespace BubbleConverter
                     newFolderPath = Path.Combine(outputFolder, stateMachineName);
                     Directory.CreateDirectory(newFolderPath);
                     // Create an instance of the Converter class with the input file path
-                    Converter conv = new Converter(inputFile);
+                    Converter conv = new Converter(inputFile, newFolderPath);
 
                     // Get the compiled state machine from the Converter
                     compiledStateMachine = conv.CompileStateMachine(stateMachineName);

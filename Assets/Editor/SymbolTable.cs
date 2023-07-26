@@ -4,26 +4,34 @@ using UnityEngine;
 using System.Linq;
 namespace BubbleConverter
 {
+    [System.Serializable]
     public class SymbolTable
     {
-        public List<string> triggerTable{get;private set;}
-        public List<string> stateTable{get;private set;}
-        public List<Transition> transitionTable{get;private set;}
+        [SerializeField]
+        private List<string> triggerTable;
+        [SerializeField]
+        private List<string> stateTable;
+        [SerializeField]
+        private List<Transition> transitionTable;
+
+        public List<string> TriggerTable { get => triggerTable; private set => triggerTable = value; }
+        public List<string> StateTable { get => stateTable; private set => stateTable = value; }
+        public List<Transition> TransitionTable { get => transitionTable; private set => transitionTable = value; }
         public SymbolTable()
         {
-            triggerTable = new List<string>();
-            stateTable = new List<string>();
-            transitionTable = new List<Transition>();
+            TriggerTable = new List<string>();
+            StateTable = new List<string>();
+            TransitionTable = new List<Transition>();
         }
         public void define(Tokenizer.TokenType tokenType, string token)
         {
-            if (tokenType == Tokenizer.TokenType.TRIGGER && !triggerTable.Contains(token))
+            if (tokenType == Tokenizer.TokenType.TRIGGER && !TriggerTable.Contains(token))
             {
-                triggerTable.Add(token);
+                TriggerTable.Add(token);
             }
-            else if (tokenType == Tokenizer.TokenType.STATE && !stateTable.Contains(token))
+            else if (tokenType == Tokenizer.TokenType.STATE && !StateTable.Contains(token))
             {
-                stateTable.Add(token);
+                StateTable.Add(token);
             }
         }
 
@@ -32,11 +40,12 @@ namespace BubbleConverter
             Transition transition = new Transition(fromState,toState,trigger);
             ParameterComparer comparer = new ParameterComparer();
             // 被りがないかチェックしてから登録
-            if(!transitionTable.Contains(transition, comparer))
+            if(!TransitionTable.Contains(transition, comparer))
             {
-                transitionTable.Add(transition);
+                TransitionTable.Add(transition);
             }
         }
+        [System.Serializable]
         public class Transition
         {
             public string fromState;
