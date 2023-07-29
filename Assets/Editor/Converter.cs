@@ -82,7 +82,7 @@ namespace BubbleConverter
                     }
                     else
                     {
-                        initialState = tokenizer.nextToken(2);
+                        initialState = MakePascalCase(tokenizer.nextToken(2));
                     }
                 }
             }
@@ -161,7 +161,7 @@ namespace BubbleConverter
                     }
                     else
                     {
-                        initialState = tokenizer.nextToken(2);
+                        initialState = MakePascalCase(tokenizer.nextToken(2));
                     }
                 }
             }
@@ -264,16 +264,15 @@ namespace BubbleConverter
             code += "    {\n";
             code +="        // トリガーの発火を制御する関数\n";
             // 正規表現で旧StateMachineのトリガー関数を抽出してコピペ
-            string oldCode = File.ReadAllText(Path.Combine(outputFolderPath, "StateMachine.cs"));
-            // 参考ページ　https://qiita.com/HMMNRST/items/15800514bbe66f504789
-            string pattern = @"private\s+bool\s+(\w+)\s*\(\s*\)\s*(?:(?'open'\{[^\{\}]*)+(?'-open'\}[^\{\}]*)+)*(?(open)(?!))";
-            MatchCollection matches = Regex.Matches(oldCode, pattern);
-            foreach(Match match in matches)
+            string oldCode = File.ReadAllText(Path.Combine(outputFolderPath, "StateMachineTriggerMethods.cs"));
+            List<string> methods = ExtractMethods(oldCode);
+            Regex reg = new Regex(@"private\s+bool\s+(\w+)");
+            foreach(string method in methods)
             {
                 // 古いトリガーのうち，新しいシンボルテーブルに含まれるもののみを抽出
-                if(newSymbolTable.TriggerTable.Contains(match.Groups[1].Value))
+                if(newSymbolTable.TriggerTable.Contains(reg.Match(method).Groups[1].Value.Substring(7)))
                 {
-                    code += match.Groups[0].Value;
+                    code += "        "+method;
                 }
             }
             // 新規トリガーを追加
@@ -387,6 +386,37 @@ namespace BubbleConverter
             string joinedString = string.Join("",extractedStringArray);
             string cleanedString = Regex.Replace(joinedString, @"\s+", "");
             return cleanedString;
+        }
+        private List<string> ExtractMethods(string code)
+        {
+            List<string> resultCode = new List<string>();
+            string tmpCode = "";
+            bool countMode = false;
+            int braCount = 0;
+            int cketCount = 0;
+            for(int i = 0;i<code.Length;i++)
+            {
+                tmpCode = tmpCode+code[i];
+                if(countMode)
+                {
+                    if(code[i].ToString()=="{") braCount++;
+                    else if(code[i].ToString()=="}") cketCount++;
+                    if(braCount==cketCount)
+                    {
+                        countMode=false;
+                        resultCode.Add(tmpCode+"\n");
+                        tmpCode = "";
+                    }
+                }
+                else if(Regex.IsMatch(tmpCode,@"private\s+bool\s+(\w+)\s*\([^)]*\)\s*{")) 
+                {
+                    tmpCode = Regex.Match(tmpCode,@"private\s+bool\s+(\w+)\s*\([^)]*\)\s*{").Groups[0].Value;
+                    countMode = true;
+                    braCount = 1;
+                    cketCount = 0;
+                }
+            }
+            return resultCode;
         }
     }
 }
