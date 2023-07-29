@@ -12,6 +12,7 @@ namespace templatespace
         ///</summary>
         public override void OnEnter() 
         {
+            Debug.Log("Enter "+this.GetType().Name);
         }
         ///<summary>
         ///前の状態から現在の状態に遷移してきたときに開始されるコルーチン

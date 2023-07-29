@@ -5,6 +5,7 @@ using System.IO;
 using System;
 using System.Text.RegularExpressions;
 using UnityEditor;
+using System.Linq;
 namespace BubbleConverter
 {
     public class Converter
@@ -43,7 +44,7 @@ namespace BubbleConverter
             code += "using BubbleConverter;\n";
             code += $"namespace {MakePascalCase(folderName)}\n";
             code += "{\n";
-            code += $"    public class {MakePascalCase(folderName)} : MonoBehaviour\n";
+            code += $"    public partial class StateMachine : MonoBehaviour\n";
             code += "    {\n";
             // symbolTableを初期化
             symbolTable = new SymbolTable();
@@ -85,10 +86,6 @@ namespace BubbleConverter
                     }
                 }
             }
-            //SymbolTableをJSON化して保存
-            string symbolTableJson = EditorJsonUtility.ToJson(symbolTable, true);
-            string fileName = Path.Combine(outputFolderPath, $"{MakePascalCase(folderName)}.JSON");
-            File.WriteAllText(fileName,symbolTableJson);
             if(initialState == null)
             {
                 // initialStateの指定がない場合はsymbolTableの最初のStateを代入
@@ -100,14 +97,109 @@ namespace BubbleConverter
             code += "        private StateMachineAssistant<StateType, TriggerType> _stateMachine;\n";
             code += CompileStart(indent);
             code += CompileUpdate(indent);
-            code += CompileTriggerMethods(indent);
             code += "    }\n";
             code += "}\n";
             resultArray.Add(code);
+            resultArray.Add(CompileTriggerMethods(folderName));
             foreach (string state in symbolTable.StateTable)
             {
                 resultArray.Add(CompileState(state, MakePascalCase(folderName)));
             }
+
+            //SymbolTableをJSON化して保存
+            string symbolTableJson = EditorJsonUtility.ToJson(symbolTable, true);
+            string fileName = Path.Combine(outputFolderPath, $"{MakePascalCase(folderName)}.JSON");
+            File.WriteAllText(fileName,symbolTableJson);
+
+            return resultArray;
+        }
+        public List<string> RecompileStateMachine(string folderName)
+        {
+            List<string> resultArray = new List<string>();
+            string code = "using System.Collections;\n";
+            code += "using System.Collections.Generic;\n";
+            code += "using UnityEngine;\n";
+            code += "using System;\n";
+            code += "using BubbleConverter;\n";
+            code += $"namespace {MakePascalCase(folderName)}\n";
+            code += "{\n";
+            code += $"    public partial class StateMachine : MonoBehaviour\n";
+            code += "    {\n";
+            // symbolTableを初期化
+            symbolTable = new SymbolTable();
+            while(tokenizer.hasMoreTokens())
+            {
+                tokenizer.advance();
+                // stateとtriggerを定義
+                if(tokenizer.token() != "[*]") 
+                {
+                    symbolTable.define(tokenizer.tokenType(),tokenizer.token());
+                }
+                // 遷移情報を登録
+                if(tokenizer.tokenType()==Tokenizer.TokenType.STATE && tokenizer.nextTokenType(1)==Tokenizer.TokenType.ARROW)
+                {
+                    if(tokenizer.token() != "[*]")
+                    {
+                        if(tokenizer.nextToken(2)!="[*]")
+                        {
+                            if(tokenizer.nextToken(3)==":")
+                            {
+                                symbolTable.registerTransition(tokenizer.token(),tokenizer.nextToken(2),tokenizer.nextToken(4));
+                            }
+                            else
+                            {
+                                // triggerがない場合，新たにtriggerを生成
+                                string trigger = char.ToUpper(tokenizer.token()[0])+tokenizer.token().Substring(1)+"2"+char.ToUpper(tokenizer.nextToken(2)[0])+tokenizer.nextToken(2).Substring(1);
+                                symbolTable.registerTransition(tokenizer.token(),tokenizer.nextToken(2),trigger);
+                                symbolTable.define(Tokenizer.TokenType.TRIGGER,trigger);
+                            }
+                        }
+                        else
+                        {
+                            Debug.LogError("終了状態[*]は使用できません．別の文字列に置き換えてください．");
+                        }
+                    }
+                    else
+                    {
+                        initialState = tokenizer.nextToken(2);
+                    }
+                }
+            }
+            if(initialState == null)
+            {
+                // initialStateの指定がない場合はsymbolTableの最初のStateを代入
+                initialState = symbolTable.StateTable[0];
+            }
+            // 古いSymbolTableをロード
+            SymbolTable oldSymbolTable = new SymbolTable();
+            string json = File.ReadAllText(Path.Combine(outputFolderPath, $"{MakePascalCase(folderName)}.JSON"));
+            EditorJsonUtility.FromJsonOverwrite(json,oldSymbolTable);
+            // 二つのSymbolTableを比較
+            SymbolTable cloneSymbolTable = symbolTable.CloneSymbolTable();
+            //oldSymbolTableに含まれるトリガーを除去
+            cloneSymbolTable.TriggerTable.RemoveAll(oldSymbolTable.TriggerTable.Contains);
+            //oldSymbolTableに含まれるステートを除去
+            cloneSymbolTable.StateTable.RemoveAll(oldSymbolTable.StateTable.Contains);
+            // 今後システムがより複雑化したときのために，indentを設定できるようにしておく
+            string indent = "        ";
+            code += CompileTable(indent);
+            code += "        private StateMachineAssistant<StateType, TriggerType> _stateMachine;\n";
+            code += CompileStart(indent);
+            code += CompileUpdate(indent);
+            code += "    }\n";
+            code += "}\n";
+            resultArray.Add(code);
+            resultArray.Add(RecompileTriggerMethods(cloneSymbolTable,symbolTable,folderName));
+            foreach (string state in cloneSymbolTable.StateTable)
+            {
+                resultArray.Add(CompileState(state, MakePascalCase(folderName)));
+            }
+            
+            //SymbolTableをJSON化して保存
+            string symbolTableJson = EditorJsonUtility.ToJson(symbolTable, true);
+            string fileName = Path.Combine(outputFolderPath, $"{MakePascalCase(folderName)}.JSON");
+            File.WriteAllText(fileName,symbolTableJson);
+
             return resultArray;
         }
         private string CompileTransition(string indent = "")
@@ -135,16 +227,65 @@ namespace BubbleConverter
             code += indent+"}\n";
             return code;
         }
-        private string CompileTriggerMethods(string indent = "")
+        private string CompileTriggerMethods(string name)
         {
-            string code =indent+"// トリガーの発火を制御する関数\n";
+            string code = "using System.Collections;\n";
+            code += "using System.Collections.Generic;\n";
+            code += "using UnityEngine;\n";
+            code += "using System;\n";
+            code += "using BubbleConverter;\n";
+            code += $"namespace {MakePascalCase(name)}\n";
+            code += "{\n";
+            code += $"    public partial class StateMachine\n";
+            code += "    {\n";
+            code +="        // トリガーの発火を制御する関数\n";
             foreach(string trigger in symbolTable.TriggerTable)
             {
-                code += indent+$"private bool trigger{char.ToUpper(trigger[0])+trigger.Substring(1)}()\n";
-                code += indent+"{\n";
-                code += indent+"    return true;\n";
-                code += indent+"}\n";
+                code += $"        private bool trigger{char.ToUpper(trigger[0])+trigger.Substring(1)}()\n";
+                code += "        {\n";
+                code += "            return true;\n";
+                code += "        }\n";
             }
+            code += "    }\n";
+            code += "}\n";
+            return code;
+        }
+        private string RecompileTriggerMethods(SymbolTable cloneSymbolTable, SymbolTable newSymbolTable, string name)
+        {
+            // ディレクティブの追加がないか確認して追記する仕組みを実装する必要がある
+            string code = "using System.Collections;\n";
+            code += "using System.Collections.Generic;\n";
+            code += "using UnityEngine;\n";
+            code += "using System;\n";
+            code += "using BubbleConverter;\n";
+            code += $"namespace {MakePascalCase(name)}\n";
+            code += "{\n";
+            code += $"    public partial class StateMachine\n";
+            code += "    {\n";
+            code +="        // トリガーの発火を制御する関数\n";
+            // 正規表現で旧StateMachineのトリガー関数を抽出してコピペ
+            string oldCode = File.ReadAllText(Path.Combine(outputFolderPath, "StateMachine.cs"));
+            // 参考ページ　https://qiita.com/HMMNRST/items/15800514bbe66f504789
+            string pattern = @"private\s+bool\s+(\w+)\s*\(\s*\)\s*(?:(?'open'\{[^\{\}]*)+(?'-open'\}[^\{\}]*)+)*(?(open)(?!))";
+            MatchCollection matches = Regex.Matches(oldCode, pattern);
+            foreach(Match match in matches)
+            {
+                // 古いトリガーのうち，新しいシンボルテーブルに含まれるもののみを抽出
+                if(newSymbolTable.TriggerTable.Contains(match.Groups[1].Value))
+                {
+                    code += match.Groups[0].Value;
+                }
+            }
+            // 新規トリガーを追加
+            foreach(string trigger in cloneSymbolTable.TriggerTable)
+            {
+                code += $"        private bool trigger{char.ToUpper(trigger[0])+trigger.Substring(1)}()\n";
+                code += "        {\n";
+                code += "            return true;\n";
+                code += "        }\n";
+            }
+            code += "    }\n";
+            code += "}\n";
             return code;
         }
         private string CompileTable(string indent = "")
@@ -167,7 +308,7 @@ namespace BubbleConverter
         }
         private string CompileStart(string indent = "")
         {
-            string code = "private void Start ()\n";
+            string code = indent+"private void Start ()\n";
             code += indent+"{\n";
             code += indent+"    // StateMachineを生成\n";
             code += indent+$"    _stateMachine = new StateMachineAssistant<StateType, TriggerType>(this, StateType.{initialState});\n";

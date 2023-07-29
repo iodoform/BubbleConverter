@@ -14,8 +14,8 @@ namespace BubbleConverter
         [SerializeField]
         private List<Transition> transitionTable;
 
-        public List<string> TriggerTable { get => triggerTable; private set => triggerTable = value; }
-        public List<string> StateTable { get => stateTable; private set => stateTable = value; }
+        public List<string> TriggerTable { get => triggerTable; set => triggerTable = value; }
+        public List<string> StateTable { get => stateTable; set => stateTable = value; }
         public List<Transition> TransitionTable { get => transitionTable; private set => transitionTable = value; }
         public SymbolTable()
         {
@@ -45,6 +45,18 @@ namespace BubbleConverter
                 TransitionTable.Add(transition);
             }
         }
+        public SymbolTable CloneSymbolTable()
+        {
+            SymbolTable copy = (SymbolTable)MemberwiseClone();
+            copy.stateTable = new List<string>(this.stateTable);
+            copy.triggerTable = new List<string>(this.triggerTable);
+            copy.transitionTable = new List<Transition>();
+            foreach(Transition transition in this.transitionTable)
+            {
+                copy.transitionTable.Add(transition);
+            }
+            return copy;
+        }
         [System.Serializable]
         public class Transition
         {
@@ -56,6 +68,10 @@ namespace BubbleConverter
                 this.fromState = fromState;
                 this.toState = toState;
                 this.trigger = trigger;
+            }
+            public Transition CloneTransition()
+            {
+                return (Transition)this.MemberwiseClone();
             }
         }
         // transitionの比較用のクラス
