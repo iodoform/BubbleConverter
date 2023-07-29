@@ -10,7 +10,6 @@ namespace BubbleConverter
     {
         private string inputFile;
         private string outputFolder;
-        private string reconvertInputFile;
         private string reconvertFolder;
         private string newFolderName;
         private List<string> compiledStateMachine;
@@ -18,7 +17,6 @@ namespace BubbleConverter
         private bool isCompilationRequested = false;
         private bool isReloading = false;
         private bool recompileMode = false;
-        private StateMachineData data;
         private string stateMachineName;
 
         [MenuItem("Custom Tools/Bubble Converter")]
@@ -100,16 +98,6 @@ namespace BubbleConverter
                 }
             }
             // 再コンパイル
-            if  (GUILayout.Button("Select Reconvert Input File"))
-            {
-                string initialPath = string.IsNullOrEmpty(reconvertInputFile) ? Application.dataPath : reconvertInputFile;
-                reconvertInputFile = EditorUtility.OpenFilePanel("Select Reconvert Input File", initialPath, "md");
-            }
-            if (!string.IsNullOrEmpty(reconvertInputFile))
-            {
-                EditorGUILayout.LabelField("Reconvert Input File Path:", reconvertInputFile);
-            }
-
             if  (GUILayout.Button("Select Reconvert Folder"))
             {
                 string initialPath = string.IsNullOrEmpty(reconvertFolder) ? Application.dataPath : reconvertFolder;
@@ -135,15 +123,8 @@ namespace BubbleConverter
             {
                 if (GUILayout.Button("Reconvert File"))
                 {
-                    if (string.IsNullOrEmpty(reconvertInputFile))
-                    {
-                        string jsonData = File.ReadAllText(Path.Combine(reconvertFolder, "StateMachineData.json"));
-                        data = new StateMachineData();
-                        EditorJsonUtility.FromJsonOverwrite(jsonData, data);
-                        reconvertInputFile = data.inputPath;
-                    }
 
-                    if (!File.Exists(reconvertInputFile))
+                    if (!File.Exists(inputFile))
                     {
                         EditorUtility.DisplayDialog("File Not Found", "The input file does not exist.", "OK");
                         return;
@@ -155,7 +136,7 @@ namespace BubbleConverter
                     }
                     stateMachineName = Path.GetFileName(reconvertFolder);
                     // Create an instance of the Converter class with the input file path
-                    Converter conv = new Converter(reconvertInputFile, reconvertFolder);
+                    Converter conv = new Converter(inputFile, reconvertFolder);
                     // Get the compiled state machine from the Converter
                     compiledStateMachine = conv.RecompileStateMachine(stateMachineName);
 
@@ -239,19 +220,19 @@ namespace BubbleConverter
             {
                 isCompilationRequested = false;
                 GameObject stateMachineGO;
-                string tmpInput;
                 string tmpNewFolderPath;
                 if(recompileMode)
                 {
+                    StateMachineData data = new StateMachineData();
+                    string json = File.ReadAllText(Path.Combine(reconvertFolder,"StateMachineData.json"));
+                    EditorJsonUtility.FromJsonOverwrite(json,data);
                     recompileMode = false;
                     stateMachineGO = GameObject.Find(data.name);
-                    tmpInput = reconvertInputFile;
                     tmpNewFolderPath = reconvertFolder;
                 }
                 else
                 {
-                    stateMachineGO = new GameObject("State Machine");
-                    tmpInput = inputFile;
+                    stateMachineGO = new GameObject(stateMachineName+"State Machine");
                     tmpNewFolderPath = newFolderPath;
                 }
                 // コンポーネント化してアタッチ
@@ -271,7 +252,7 @@ namespace BubbleConverter
                 }
                 string name = stateMachineGO.name;
                 string pathFileName = Path.Combine(tmpNewFolderPath, "StateMachineData.json");
-                string jsonData = EditorJsonUtility.ToJson(new StateMachineData(tmpInput,name));
+                string jsonData = EditorJsonUtility.ToJson(new StateMachineData(inputFile,name));
                 File.WriteAllText(pathFileName,jsonData);
                 EditorUtility.DisplayDialog("Conversion Complete", "File conversion completed successfully.", "OK");
                 

@@ -25,6 +25,7 @@ namespace BubbleConverter
         }
         public void define(Tokenizer.TokenType tokenType, string token)
         {
+            token = char.ToUpper(token[0])+token.Substring(1);
             if (tokenType == Tokenizer.TokenType.TRIGGER && !TriggerTable.Contains(token))
             {
                 TriggerTable.Add(token);
@@ -35,8 +36,11 @@ namespace BubbleConverter
             }
         }
 
-        public void registerTransition(string fromState, string toState, string trigger = null)
+        public void registerTransition(string fromState, string toState, string trigger)
         {
+            fromState = char.ToUpper(fromState[0])+fromState.Substring(1);
+            toState = char.ToUpper(toState[0])+toState.Substring(1);
+            trigger = char.ToUpper(trigger[0])+trigger.Substring(1);
             Transition transition = new Transition(fromState,toState,trigger);
             ParameterComparer comparer = new ParameterComparer();
             // 被りがないかチェックしてから登録
