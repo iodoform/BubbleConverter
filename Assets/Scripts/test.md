@@ -7,5 +7,8 @@ stateDiagram-v2
 
 
     s2 --> s3 
-    s3-->s1:bbb
+    s3-->s4:fff
+    s4-->s2:ddd
+    s3-->s5:sss
+    s5-->s2:aaa
 ```

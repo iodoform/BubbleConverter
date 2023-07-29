@@ -10,11 +10,16 @@ namespace BubbleConverter
     {
         private string inputFile;
         private string outputFolder;
+        private string reconvertInputFile;
+        private string reconvertFolder;
         private string newFolderName;
         private List<string> compiledStateMachine;
         private string newFolderPath;
         private bool isCompilationRequested = false;
         private bool isReloading = false;
+        private bool recompileMode = false;
+        private StateMachineData data;
+        private string stateMachineName;
 
         [MenuItem("Custom Tools/Bubble Converter")]
         private static void Init()
@@ -34,7 +39,7 @@ namespace BubbleConverter
         private void OnGUI()
         {
             GUILayout.Label("Bubble Converter", EditorStyles.boldLabel);
-
+            // コンパイル
             if (GUILayout.Button("Select Input File"))
             {
                 string initialPath = string.IsNullOrEmpty(inputFile) ? Application.dataPath : inputFile;
@@ -79,30 +84,110 @@ namespace BubbleConverter
                         return;
                     }
                     // Create a new folder in the specified output folder
-                    string stateMachineName = GetUniqueFolderName(outputFolder, newFolderName);
+                    stateMachineName = GetUniqueFolderName(outputFolder, newFolderName);
                     newFolderPath = Path.Combine(outputFolder, stateMachineName);
                     Directory.CreateDirectory(newFolderPath);
                     // Create an instance of the Converter class with the input file path
                     Converter conv = new Converter(inputFile, newFolderPath);
-
                     // Get the compiled state machine from the Converter
                     compiledStateMachine = conv.CompileStateMachine(stateMachineName);
 
                     // 生成したスクリプトを保存
-                    for (int i = 0; i < compiledStateMachine.Count; i++)
-                    {
-                        // Extract class name using regex
-                        string className = ExtractClassName(compiledStateMachine[i]);
-
-                        // Generate file name using the extracted class name
-                        string fileName = Path.Combine(newFolderPath, $"{className}.cs");
-                        File.WriteAllText(fileName, compiledStateMachine[i]);
-                        AssetDatabase.ImportAsset(fileName, ImportAssetOptions.ForceUpdate ); 
-                    }
+                    SaveScript(compiledStateMachine,newFolderPath);
                     // スクリプトをコンパイル
                     CompilationPipeline.RequestScriptCompilation();
                     isCompilationRequested = true;
                 }
+            }
+            // 再コンパイル
+            if  (GUILayout.Button("Select Reconvert Input File"))
+            {
+                string initialPath = string.IsNullOrEmpty(reconvertInputFile) ? Application.dataPath : reconvertInputFile;
+                reconvertInputFile = EditorUtility.OpenFilePanel("Select Reconvert Input File", initialPath, "md");
+            }
+            if (!string.IsNullOrEmpty(reconvertInputFile))
+            {
+                EditorGUILayout.LabelField("Reconvert Input File Path:", reconvertInputFile);
+            }
+
+            if  (GUILayout.Button("Select Reconvert Folder"))
+            {
+                string initialPath = string.IsNullOrEmpty(reconvertFolder) ? Application.dataPath : reconvertFolder;
+                reconvertFolder = EditorUtility.OpenFolderPanel("Select Reconvert Folder", initialPath, "");
+                // Ensure that the selected output folder is within the Unity project's Asset folder
+                if (!reconvertFolder.StartsWith(Application.dataPath))
+                {
+                    EditorUtility.DisplayDialog("Invalid Output Folder", "Please select an output folder within the Unity project's Asset folder.", "OK");
+                    reconvertFolder = string.Empty;
+                }
+                else
+                {
+                    // Convert the selected output folder path to a relative path within the Unity project's Asset folder
+                    reconvertFolder = "Assets" + reconvertFolder.Substring(Application.dataPath.Length);
+                }
+            }
+            if (!string.IsNullOrEmpty(reconvertFolder))
+            {
+                EditorGUILayout.LabelField("Reconvert Folder Path:", reconvertFolder);
+            }
+
+            if (!string.IsNullOrEmpty(reconvertFolder))
+            {
+                if (GUILayout.Button("Reconvert File"))
+                {
+                    if (string.IsNullOrEmpty(reconvertInputFile))
+                    {
+                        string jsonData = File.ReadAllText(Path.Combine(reconvertFolder, "StateMachineData.json"));
+                        data = new StateMachineData();
+                        EditorJsonUtility.FromJsonOverwrite(jsonData, data);
+                        reconvertInputFile = data.inputPath;
+                    }
+
+                    if (!File.Exists(reconvertInputFile))
+                    {
+                        EditorUtility.DisplayDialog("File Not Found", "The input file does not exist.", "OK");
+                        return;
+                    }
+                    if (!Directory.Exists(reconvertFolder))
+                    {
+                        EditorUtility.DisplayDialog("Folder Not Found", "The Reconvert Folder does not exist.", "OK");
+                        return;
+                    }
+                    stateMachineName = Path.GetFileName(reconvertFolder);
+                    // Create an instance of the Converter class with the input file path
+                    Converter conv = new Converter(reconvertInputFile, reconvertFolder);
+                    // Get the compiled state machine from the Converter
+                    compiledStateMachine = conv.RecompileStateMachine(stateMachineName);
+
+                    // 生成したスクリプトを保存
+                    SaveScript(compiledStateMachine, reconvertFolder);
+                    // スクリプトをコンパイル
+                    CompilationPipeline.RequestScriptCompilation();
+                    isCompilationRequested = true;
+                    recompileMode = true;
+                }
+            }
+        }
+
+        private void SaveScript(List<string> compiledStateMachine, string folderPath)
+        {
+            int tmpcount = 0;
+            for (int i = 0; i < compiledStateMachine.Count; i++)
+            {
+                // Extract class name using regex
+                string className = ExtractClassName(compiledStateMachine[i]);
+                if (className == "StateMachine")
+                {
+                    tmpcount++;
+                    if (tmpcount == 2)
+                    {
+                        className = "StateMachineTriggerMethods";
+                    }
+                }
+                // Generate file name using the extracted class name
+                string fileName = Path.Combine(folderPath, $"{className}.cs");
+                File.WriteAllText(fileName, compiledStateMachine[i]);
+                AssetDatabase.ImportAsset(fileName, ImportAssetOptions.ForceUpdate);
             }
         }
 
@@ -124,11 +209,15 @@ namespace BubbleConverter
         // Helper method to extract class name using regex
         private string ExtractClassName(string content)
         {
-            string pattern = @"public\s+class\s+(\w+)\b";
+            string pattern = @"public\s+(?:partial\s+)?class\s+(\w+)\b";
             Match match = Regex.Match(content, pattern);
             if (match.Success)
             {
                 return match.Groups[1].Value;
+            }
+            else
+            {
+                Debug.LogError("No public class is defined.");
             }
             return "DefaultClassName";
         }
@@ -148,28 +237,56 @@ namespace BubbleConverter
         {
             if (isCompilationRequested)
             {
-                // Create a new empty GameObject named "State Machine" in the scene
-                GameObject stateMachineGO = new GameObject("State Machine");
+                isCompilationRequested = false;
+                GameObject stateMachineGO;
+                string tmpInput;
+                string tmpNewFolderPath;
+                if(recompileMode)
+                {
+                    recompileMode = false;
+                    stateMachineGO = GameObject.Find(data.name);
+                    tmpInput = reconvertInputFile;
+                    tmpNewFolderPath = reconvertFolder;
+                }
+                else
+                {
+                    stateMachineGO = new GameObject("State Machine");
+                    tmpInput = inputFile;
+                    tmpNewFolderPath = newFolderPath;
+                }
                 // コンポーネント化してアタッチ
                 for (int i = 0; i < compiledStateMachine.Count; i++)
                 {
                     // Extract class name using regex
                     string className = ExtractClassName(compiledStateMachine[i]);
                     // Generate file name using the extracted class name
-                    string fileName = Path.Combine(newFolderPath, $"{className}.cs");
+                    string fileName = Path.Combine(tmpNewFolderPath, $"{className}.cs");
                     // Create a C# script asset from the output file
                     MonoScript scriptAsset = AssetDatabase.LoadAssetAtPath<MonoScript>(fileName);
-                    if (scriptAsset != null)
+                    if (scriptAsset != null && !stateMachineGO.GetComponent(scriptAsset.GetClass()))
                     {
                         // Attach the script component to the "State Machine" GameObject
                         stateMachineGO.AddComponent(scriptAsset.GetClass());
                     }
                 }
+                string name = stateMachineGO.name;
+                string pathFileName = Path.Combine(tmpNewFolderPath, "StateMachineData.json");
+                string jsonData = EditorJsonUtility.ToJson(new StateMachineData(tmpInput,name));
+                File.WriteAllText(pathFileName,jsonData);
                 EditorUtility.DisplayDialog("Conversion Complete", "File conversion completed successfully.", "OK");
-                // 次の処理が完了したらフラグをリセット
-                isCompilationRequested = false;
+                
             }
         }
-        
+        [System.Serializable]
+        public class StateMachineData
+        {
+            public string inputPath;
+            public string name;
+            public StateMachineData(string inputPath="", string name="")
+            {
+                this.inputPath = inputPath;
+                this.name = name;
+            }
+        }
     }
 }
