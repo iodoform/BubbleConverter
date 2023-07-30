@@ -1,4 +1,4 @@
-```MerMaiD
+```   MerMaiD
 stateDiagram-v2
     [*]-->s1
     s1 
