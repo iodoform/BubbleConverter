@@ -20,9 +20,8 @@ namespace BubbleConverter
         public Tokenizer(string text)
         {
             // コメント及び不要な部分を削除
-            text = Regex.Replace(text,@"%%.*\n|%%.*\r|stateDiagram-v2|```|\r|\r\n","\n");
-            Regex reg = new Regex("mermaid", RegexOptions.IgnoreCase);
-            text = reg.Replace(text,"");
+            text = Regex.Match(text,@"```\s*mermaid\s*(?: stateDiagram-v2|stateDiagram)\s*(.*)```",RegexOptions.IgnoreCase).Groups[1].Value;
+            text = Regex.Replace(text,@"%%.*\n|%%.*\r|\r|\r\n","\n");
             // トリガーを分かち書きから連結
             text = ExtractAndReplace(text,@":.*\n");
             text = Regex.Replace(text,@"[\n\s]+","\n");
@@ -33,7 +32,13 @@ namespace BubbleConverter
             this.text = this.text.Where(s => !string.IsNullOrEmpty(s)).ToArray();
             this.text = this.text.Where(s => !(s=="\n")).ToArray();
         }
-
+        private bool isGrammatical()
+        {
+            for(int i = 0;i<text.Length;i++)
+            {
+                
+            }
+        }
         public bool hasMoreTokens()
         {
             return currentTextPosition+1<this.text.Length;
