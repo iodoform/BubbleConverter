@@ -1,7 +1,7 @@
 {
   "dependencies": {
-    "com.iodoform.bubble_converter": {
-      "version": "file:BubbleConverter",
+    "com.icd.bubble_converter": {
+      "version": "file:com.icd.bubble_converter",
       "depth": 0,
       "source": "embedded",
       "dependencies": {}
