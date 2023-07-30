@@ -14,7 +14,7 @@ namespace BubbleConverter
         private Tokenizer tokenizer;
         private string initialState = null;
         private SymbolTable symbolTable;
-        private string templateFilePath = Path.Combine(System.IO.Directory.GetCurrentDirectory(), "Assets/Editor/StateTemplate.cs");
+        private string templateFilePath = Path.Combine(System.IO.Directory.GetCurrentDirectory(), @"Packages\com.icd.bubble_converter\Editor\StateTemplate.cs");
         private string outputFolderPath;
         public Converter(string inputFilePath, string outputFolderPath)
         {
