@@ -19,10 +19,11 @@ namespace BubbleConverter
         private bool recompileMode = false;
         private string stateMachineName;
 
-        [MenuItem("Custom Tools/Bubble Converter")]
+        [MenuItem("Bubble Converter/Bubble Converter Window")]
         private static void Init()
         {
             BubbleConverterWindow window = (BubbleConverterWindow)EditorWindow.GetWindow(typeof(BubbleConverterWindow));
+            window.titleContent = new GUIContent("Bubble Converter");
             window.Show();
         }
         private void OnEnable()
