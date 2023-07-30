@@ -252,19 +252,20 @@ namespace BubbleConverter
         }
         private string RecompileTriggerMethods(SymbolTable cloneSymbolTable, SymbolTable newSymbolTable, string name)
         {
-            // ディレクティブの追加がないか確認して追記する仕組みを実装する必要がある
-            string code = "using System.Collections;\n";
-            code += "using System.Collections.Generic;\n";
-            code += "using UnityEngine;\n";
-            code += "using System;\n";
-            code += "using BubbleConverter;\n";
+            string oldCode = File.ReadAllText(Path.Combine(outputFolderPath, "StateMachineTriggerMethods.cs"));
+            // 正規表現で旧StateMachineのusingディレクティブを抽出
+            MatchCollection directives = Regex.Matches(oldCode,@"using.*?;");
+            string code = "";
+            foreach(Match item in directives)
+            {
+                code = code + item.Groups[0].Value+"\n";
+            }
             code += $"namespace {MakePascalCase(name)}\n";
             code += "{\n";
             code += $"    public partial class StateMachine\n";
             code += "    {\n";
             code +="        // トリガーの発火を制御する関数\n";
-            // 正規表現で旧StateMachineのトリガー関数を抽出してコピペ
-            string oldCode = File.ReadAllText(Path.Combine(outputFolderPath, "StateMachineTriggerMethods.cs"));
+            // 正規表現で旧StateMachineのトリガー関数を抽出
             List<string> methods = ExtractMethods(oldCode);
             Regex reg = new Regex(@"private\s+bool\s+(\w+)");
             foreach(string method in methods)
