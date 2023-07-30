@@ -1,0 +1,8 @@
+{
+    "name": "com.icd.bubble_converter",
+    "version": "0.1.0",
+    "displayName": "BubbleConverter",
+    "description": "This package provides an editor extension to generate state machines from state transition diagrams written in Mermaid notation",
+    "unity": "2021.3",
+    "documentationUr":""
+  }
