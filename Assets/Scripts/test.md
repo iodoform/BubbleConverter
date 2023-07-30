@@ -8,6 +8,6 @@ stateDiagram-v2
 
     s2 --> s3 
     s3-->s1
-    s3-->s4
-    s4-->s1:aaa
+    %%s3-->s4
+    %%s4-->s1:aaa
 ```
