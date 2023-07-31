@@ -5,7 +5,6 @@ using System.IO;
 using System;
 using System.Text.RegularExpressions;
 using UnityEditor;
-using System.Linq;
 namespace BubbleConverter
 {
     public class Converter
@@ -25,95 +24,59 @@ namespace BubbleConverter
                 using (StreamReader sr = new StreamReader(inputFilePath))
                 {
                     text = sr.ReadToEnd();
-                    tokenizer = new Tokenizer(text);
                 }
             }
             catch (Exception ex)
             {
                 Debug.LogError(ex.Message);
             }
+            tokenizer = new Tokenizer(text);
         }
 
         public List<string> CompileStateMachine(string folderName)
         {
-            List<string> resultArray = new List<string>();
-            string code = "using System.Collections;\n";
-            code += "using System.Collections.Generic;\n";
-            code += "using UnityEngine;\n";
-            code += "using System;\n";
-            code += "using BubbleConverter;\n";
-            code += $"namespace {MakePascalCase(folderName)}\n";
-            code += "{\n";
-            code += $"    public partial class StateMachine : MonoBehaviour\n";
-            code += "    {\n";
             // symbolTableを初期化
             symbolTable = new SymbolTable();
-            while(tokenizer.hasMoreTokens())
-            {
-                tokenizer.advance();
-                // stateとtriggerを定義
-                if(tokenizer.token() != "[*]") 
-                {
-                    symbolTable.define(tokenizer.tokenType(),tokenizer.token());
-                }
-                // 遷移情報を登録
-                if(tokenizer.tokenType()==Tokenizer.TokenType.STATE && tokenizer.nextTokenType(1)==Tokenizer.TokenType.ARROW)
-                {
-                    if(tokenizer.token() != "[*]")
-                    {
-                        if(tokenizer.nextToken(2)!="[*]")
-                        {
-                            if(tokenizer.nextToken(3)==":")
-                            {
-                                symbolTable.registerTransition(tokenizer.token(),tokenizer.nextToken(2),tokenizer.nextToken(4));
-                            }
-                            else
-                            {
-                                // triggerがない場合，新たにtriggerを生成
-                                string trigger = char.ToUpper(tokenizer.token()[0])+tokenizer.token().Substring(1)+"2"+char.ToUpper(tokenizer.nextToken(2)[0])+tokenizer.nextToken(2).Substring(1);
-                                symbolTable.registerTransition(tokenizer.token(),tokenizer.nextToken(2),trigger);
-                                symbolTable.define(Tokenizer.TokenType.TRIGGER,trigger);
-                            }
-                        }
-                        else
-                        {
-                            Debug.LogError("終了状態[*]は使用できません．別の文字列に置き換えてください．");
-                        }
-                    }
-                    else
-                    {
-                        initialState = MakePascalCase(tokenizer.nextToken(2));
-                    }
-                }
-            }
-            if(initialState == null)
-            {
-                // initialStateの指定がない場合はsymbolTableの最初のStateを代入
-                initialState = symbolTable.StateTable[0];
-            }
-            //今後システムがより複雑化したときのために，indentを設定できるようにしておく
-            string indent = "        ";
-            code += CompileTable(indent);
-            code += "        private StateMachineAssistant<StateType, TriggerType> _stateMachine;\n";
-            code += CompileStart(indent);
-            code += CompileUpdate(indent);
-            code += "    }\n";
-            code += "}\n";
-            resultArray.Add(code);
+            MakeSymbolTable(symbolTable);
+            // ステートマシン本体を生成
+            List<string> resultArray = CompileMain(folderName);
+            // トリガーを生成
             resultArray.Add(CompileTriggerMethods(folderName));
+            // ステートを生成
             foreach (string state in symbolTable.StateTable)
             {
                 resultArray.Add(CompileState(state, MakePascalCase(folderName)));
             }
-
-            //SymbolTableをJSON化して保存
-            string symbolTableJson = EditorJsonUtility.ToJson(symbolTable, true);
-            string fileName = Path.Combine(outputFolderPath, $"{MakePascalCase(folderName)}.JSON");
-            File.WriteAllText(fileName,symbolTableJson);
-
+            SaveSymbolTable(folderName);
             return resultArray;
         }
         public List<string> RecompileStateMachine(string folderName)
+        {
+            // symbolTableを初期化
+            symbolTable = new SymbolTable();
+            MakeSymbolTable(symbolTable);
+            // ステートマシン本体を生成
+            List<string> resultArray = CompileMain(folderName);
+            // 古いSymbolTableをロード
+            SymbolTable oldSymbolTable = new SymbolTable();
+            string json = File.ReadAllText(Path.Combine(outputFolderPath, $"{MakePascalCase(folderName)}.JSON"));
+            EditorJsonUtility.FromJsonOverwrite(json, oldSymbolTable);
+            SymbolTable cloneSymbolTable = symbolTable.CloneSymbolTable();
+            //oldSymbolTableに含まれるトリガーとステートを除去
+            cloneSymbolTable.TriggerTable.RemoveAll(oldSymbolTable.TriggerTable.Contains);
+            cloneSymbolTable.StateTable.RemoveAll(oldSymbolTable.StateTable.Contains);
+            // トリガーを更新
+            resultArray.Add(RecompileTriggerMethods(cloneSymbolTable, symbolTable, folderName));
+            // 追加のステートを生成
+            foreach (string state in cloneSymbolTable.StateTable)
+            {
+                resultArray.Add(CompileState(state, MakePascalCase(folderName)));
+            }
+            SaveSymbolTable(folderName);
+            return resultArray;
+        }
+
+        private List<string> CompileMain(string folderName)
         {
             List<string> resultArray = new List<string>();
             string code = "using System.Collections;\n";
@@ -125,61 +88,6 @@ namespace BubbleConverter
             code += "{\n";
             code += $"    public partial class StateMachine : MonoBehaviour\n";
             code += "    {\n";
-            // symbolTableを初期化
-            symbolTable = new SymbolTable();
-            while(tokenizer.hasMoreTokens())
-            {
-                tokenizer.advance();
-                // stateとtriggerを定義
-                if(tokenizer.token() != "[*]") 
-                {
-                    symbolTable.define(tokenizer.tokenType(),tokenizer.token());
-                }
-                // 遷移情報を登録
-                if(tokenizer.tokenType()==Tokenizer.TokenType.STATE && tokenizer.nextTokenType(1)==Tokenizer.TokenType.ARROW)
-                {
-                    if(tokenizer.token() != "[*]")
-                    {
-                        if(tokenizer.nextToken(2)!="[*]")
-                        {
-                            if(tokenizer.nextToken(3)==":")
-                            {
-                                symbolTable.registerTransition(tokenizer.token(),tokenizer.nextToken(2),tokenizer.nextToken(4));
-                            }
-                            else
-                            {
-                                // triggerがない場合，新たにtriggerを生成
-                                string trigger = char.ToUpper(tokenizer.token()[0])+tokenizer.token().Substring(1)+"2"+char.ToUpper(tokenizer.nextToken(2)[0])+tokenizer.nextToken(2).Substring(1);
-                                symbolTable.registerTransition(tokenizer.token(),tokenizer.nextToken(2),trigger);
-                                symbolTable.define(Tokenizer.TokenType.TRIGGER,trigger);
-                            }
-                        }
-                        else
-                        {
-                            Debug.LogError("終了状態[*]は使用できません．別の文字列に置き換えてください．");
-                        }
-                    }
-                    else
-                    {
-                        initialState = MakePascalCase(tokenizer.nextToken(2));
-                    }
-                }
-            }
-            if(initialState == null)
-            {
-                // initialStateの指定がない場合はsymbolTableの最初のStateを代入
-                initialState = symbolTable.StateTable[0];
-            }
-            // 古いSymbolTableをロード
-            SymbolTable oldSymbolTable = new SymbolTable();
-            string json = File.ReadAllText(Path.Combine(outputFolderPath, $"{MakePascalCase(folderName)}.JSON"));
-            EditorJsonUtility.FromJsonOverwrite(json,oldSymbolTable);
-            // 二つのSymbolTableを比較
-            SymbolTable cloneSymbolTable = symbolTable.CloneSymbolTable();
-            //oldSymbolTableに含まれるトリガーを除去
-            cloneSymbolTable.TriggerTable.RemoveAll(oldSymbolTable.TriggerTable.Contains);
-            //oldSymbolTableに含まれるステートを除去
-            cloneSymbolTable.StateTable.RemoveAll(oldSymbolTable.StateTable.Contains);
             // 今後システムがより複雑化したときのために，indentを設定できるようにしておく
             string indent = "        ";
             code += CompileTable(indent);
@@ -189,19 +97,64 @@ namespace BubbleConverter
             code += "    }\n";
             code += "}\n";
             resultArray.Add(code);
-            resultArray.Add(RecompileTriggerMethods(cloneSymbolTable,symbolTable,folderName));
-            foreach (string state in cloneSymbolTable.StateTable)
-            {
-                resultArray.Add(CompileState(state, MakePascalCase(folderName)));
-            }
-            
+            return resultArray;
+        }
+
+        private void SaveSymbolTable(string folderName)
+        {
             //SymbolTableをJSON化して保存
             string symbolTableJson = EditorJsonUtility.ToJson(symbolTable, true);
             string fileName = Path.Combine(outputFolderPath, $"{MakePascalCase(folderName)}.JSON");
-            File.WriteAllText(fileName,symbolTableJson);
-
-            return resultArray;
+            File.WriteAllText(fileName, symbolTableJson);
         }
+
+        private void MakeSymbolTable(SymbolTable symbolTable)
+        {
+            while (tokenizer.hasMoreTokens())
+            {
+                tokenizer.advance();
+                // stateとtriggerを定義
+                if (tokenizer.token() != "[*]")
+                {
+                    symbolTable.define(tokenizer.tokenType(), tokenizer.token());
+                }
+                // 遷移情報を登録
+                if (tokenizer.tokenType() == Tokenizer.TokenType.STATE && tokenizer.nextToken(1) != null && tokenizer.nextTokenType(1) == Tokenizer.TokenType.ARROW)
+                {
+                    if (tokenizer.token() != "[*]")
+                    {
+                        if (tokenizer.nextToken(2) != "[*]")
+                        {
+                            if (tokenizer.nextToken(3) == ":")
+                            {
+                                symbolTable.registerTransition(tokenizer.token(), tokenizer.nextToken(2), tokenizer.nextToken(4));
+                            }
+                            else
+                            {
+                                // triggerがない場合，新たにtriggerを生成
+                                string trigger = char.ToUpper(tokenizer.token()[0]) + tokenizer.token().Substring(1) + "2" + char.ToUpper(tokenizer.nextToken(2)[0]) + tokenizer.nextToken(2).Substring(1);
+                                symbolTable.registerTransition(tokenizer.token(), tokenizer.nextToken(2), trigger);
+                                symbolTable.define(Tokenizer.TokenType.TRIGGER, trigger);
+                            }
+                        }
+                        else
+                        {
+                            Debug.LogError("Exit status [*] cannot be used. Please replace it with another string.");
+                        }
+                    }
+                    else
+                    {
+                        initialState = MakePascalCase(tokenizer.nextToken(2));
+                    }
+                }
+            }
+            if (initialState == null)
+            {
+                // initialStateの指定がない場合はsymbolTableの最初のStateを代入
+                initialState = symbolTable.StateTable[0];
+            }
+        }
+
         private string CompileTransition(string indent = "")
         {
             string code = indent+"// 遷移情報を登録\n";
