@@ -22,7 +22,7 @@ namespace BubbleConverter
         public Tokenizer(string text)
         {
             // コメント及び不要な部分を削除
-            text = Regex.Match(text,@"```\s*mermaid\s*(?: stateDiagram-v2|stateDiagram)\s*(.*)```",RegexOptions.IgnoreCase).Groups[1].Value;
+            text = Regex.Match(text,@"```\s*mermaid\s*(?:stateDiagram-v2|stateDiagram)\s*(.*)```",RegexOptions.IgnoreCase|RegexOptions.Singleline).Groups[1].Value;
             text = Regex.Replace(text,@"%%.*\n|%%.*\r|\r|\r\n","\n");
             // トリガーを分かち書きから連結
             text = ExtractAndReplace(text,@":.*\n");
@@ -34,107 +34,92 @@ namespace BubbleConverter
             this.text = this.text.Where(s => !string.IsNullOrEmpty(s)).ToArray();
             this.text = this.text.Where(s => !(s=="\n")).ToArray();
             //テキストが文法通りか確認
-            if(!isGrammatical()) Debug.LogError("Incorrect syntax in .md file");
+            if(!isGrammatical()) throw new Exception("Incorrect syntax in .md file.");
         }
         private bool isGrammatical()
         {
             for(int i = 0;i<text.Length;i++)
             {
                 // 次に来るトークンが文法的に正しいか判定
-                if(tokenType(text[i],i) == TokenType.STATE)
+                switch (tokenType(text[i],i))
                 {
-                    TokenType next;
-                    try
+                    case TokenType.STATE:
                     {
-                        next = tokenType(text[i+1],i+1);
-                    }
-                    catch (System.IndexOutOfRangeException)
-                    {
-                        if(previousTokenType==TokenType.ARROW)
+                        TokenType next;
+                        try
+                        {
+                            next = tokenType(text[i+1],i+1);
+                        }
+                        catch (System.IndexOutOfRangeException)
                         {
                             return true;
                         }
-                        else
+                        if(previousTokenType==TokenType.STATE || previousTokenType == TokenType.TRIGGER)
                         {
-                            Debug.LogError("State must always be defined before or after a transition");
-                            return false;
+                            if(next!=TokenType.ARROW && next!=TokenType.STATE)
+                            {
+                                throw new Exception("Incorrect syntax in .md file.");
+                            }
                         }
-                    }
-                    if(previousTokenType==TokenType.STATE || previousTokenType == TokenType.TRIGGER)
-                    {
-                        if(next!=TokenType.ARROW)
+                        else if (previousTokenType == TokenType.ARROW)
                         {
-                            Debug.LogError("State must always be defined before or after a transition");
-                            return false;
+                            if(!(next==TokenType.STATE||next==TokenType.SYMBOL))
+                            {
+                                throw new Exception("Incorrect syntax in .md file.");
+                            }
                         }
+                        break;
                     }
-                    else if (previousTokenType == TokenType.ARROW)
+                    case TokenType.TRIGGER:
                     {
-                        if(!(next==TokenType.STATE||next==TokenType.SYMBOL))
+                        TokenType next;
+                        try
                         {
-                            Debug.LogError("One state token can only describe a destination or a source of a transition.");
-                            return false;
+                            next = tokenType(text[i+1],i+1);
                         }
+                        catch (System.IndexOutOfRangeException)
+                        {
+                            return true;
+                        }
+                        if(next!=TokenType.STATE)
+                        {
+                            throw new Exception("Incorrect syntax in .md file.");
+                        }
+                        break;
                     }
-                    else
+                    case TokenType.SYMBOL:
                     {
-                        Debug.LogError("A description around a state token is incorrect. Syntax error or unsupported syntax is used.");
-                        return false;
+                        TokenType next;
+                        try
+                        {
+                            next = tokenType(text[i+1],i+1);
+                        }
+                        catch (System.IndexOutOfRangeException)
+                        {
+                            throw new Exception(("Incorrect syntax in .md file."));
+                        }
+                        if(next!=TokenType.TRIGGER)
+                        {
+                            throw new Exception(("Incorrect syntax in .md file."));
+                        }
+                        break;
                     }
-                }
-
-                if(tokenType(text[i],i) == TokenType.TRIGGER)
-                {
-                    TokenType next;
-                    try
+                    case TokenType.ARROW:
                     {
-                        next = tokenType(text[i+1],i+1);
-                    }
-                    catch (System.IndexOutOfRangeException)
-                    {
-                        return true;
-                    }
-                    if(next!=TokenType.STATE)
-                    {
-                        Debug.LogError("A trigger token should be written at a end of a line.");
-                        return false;
-                    }
-                }
-
-                if(tokenType(text[i],i) == TokenType.SYMBOL)
-                {
-                    TokenType next;
-                    try
-                    {
-                        next = tokenType(text[i+1],i+1);
-                    }
-                    catch (System.IndexOutOfRangeException)
-                    {
-                        Debug.LogError(("Always write a trigger after ':'."));
-                        return false;
-                    }
-                    if(next!=TokenType.TRIGGER)
-                    {
-                        Debug.LogError(("Always write a trigger after ':'."));
-                        return false;
-                    }
-                }
-                if(tokenType(text[i],i) == TokenType.ARROW)
-                {
-                    TokenType next;
-                    try
-                    {
-                        next = tokenType(text[i+1],i+1);
-                    }
-                    catch (System.IndexOutOfRangeException)
-                    {
-                        Debug.LogError(("Always write a state after '-->'."));
-                        return false;
-                    }
-                    if(next!=TokenType.STATE)
-                    {
-                        Debug.LogError(("Always write a state after '-->'."));
-                        return false;
+                            TokenType next;
+                        try
+                        {
+                            next = tokenType(text[i+1],i+1);
+                        }
+                        catch (System.IndexOutOfRangeException)
+                        {
+                            throw new Exception(("Incorrect syntax in .md file."));
+                        }
+                        if(next!=TokenType.STATE)
+                        {
+                            throw new Exception(("Incorrect syntax in .md file."));
+                        }
+                        break;
                     }
                 }
                 previousTokenType = tokenType(text[i],i);
@@ -198,16 +183,15 @@ namespace BubbleConverter
 
         public TokenType nextTokenType(int offset)
         {
-            string nextToken;
-            try
+            string _nextToken = nextToken(offset);
+            if(_nextToken!=null)
             {
-                nextToken = text[currentTextPosition+offset];
+                return tokenType(_nextToken,currentTextPosition+offset);
             }
-            catch (System.IndexOutOfRangeException)
+            else
             {
-                nextToken = null;
+                throw new Exception("The position specified by offset has exceeded the index.");
             }
-            return tokenType(nextToken,currentTextPosition+offset);
         }
         public string token()
         {
