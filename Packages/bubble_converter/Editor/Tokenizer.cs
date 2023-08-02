@@ -230,7 +230,7 @@ namespace BubbleConverter
                 string joinedString = string.Join("",extractedStringArray);
 
                 string cleanedString = Regex.Replace(joinedString, @"\s+", "");
-                inputString = inputString.Replace(extractedString, cleanedString);
+                inputString = inputString.Replace(extractedString, cleanedString+"\n");
             }
 
             return inputString;
