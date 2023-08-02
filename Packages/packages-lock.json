@@ -1,7 +1,7 @@
 {
   "dependencies": {
-    "com.icd.bubble_converter": {
-      "version": "file:com.icd.bubble_converter",
+    "bubble_converter": {
+      "version": "file:bubble_converter",
       "depth": 0,
       "source": "embedded",
       "dependencies": {}
