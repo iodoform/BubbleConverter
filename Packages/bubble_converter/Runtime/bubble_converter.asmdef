@@ -1,5 +1,5 @@
 {
-    "name": "bubble_converter.Editor",
+    "name": "bubble_converter",
     "rootNamespace": "",
     "references": [],
     "includePlatforms": [],
