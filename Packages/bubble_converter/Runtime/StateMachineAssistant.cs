@@ -59,6 +59,7 @@ namespace BubbleConverter
         /// </summary>
         public void ExecuteTrigger(TTrigger trigger)
         {
+            if(!_transitionLists.ContainsKey(_stateType)) return;
             var transitions = _transitionLists[_stateType];
             foreach (var transition in transitions)
             {
