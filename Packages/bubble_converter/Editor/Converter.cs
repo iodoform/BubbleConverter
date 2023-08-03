@@ -95,6 +95,7 @@ namespace BubbleConverter
             string indent = "        ";
             code += CompileTable(indent);
             code += "        private StateMachineAssistant<StateType, TriggerType> _stateMachine;\n";
+            code += "        private Dictionary<StateType,State> _stateDict;\n";
             code += CompileStart(indent);
             code += CompileUpdate(indent);
             code += "    }\n";
@@ -300,6 +301,7 @@ namespace BubbleConverter
             code += indent+"    _stateMachine = new StateMachineAssistant<StateType, TriggerType>(this);\n";
             code += CompileTransition(indent+"    ");
             code += indent+"    // Stateを生成してふるまいを登録\n";
+            code += indent+"    _stateDict = new Dictionary<StateType, State>();\n";
             code += indent+"    foreach (StateType state in Enum.GetValues(typeof(StateType)))\n";
             code += indent+"    {\n";
             code += indent+"        string stateName = Enum.GetName(typeof(StateType),state);\n";
@@ -308,6 +310,7 @@ namespace BubbleConverter
             code += indent+"        {\n";
             code += indent+"            Debug.LogError($\"{stateName}コンポーネントが{gameObject.name}にアタッチまたは有効化されていません．{stateName}コンポーネントを{gameObject.name}にアタッチまたは有効化してください．{stateName}コンポーネントが見つからない場合はCustom Tools > FileConverterWindow から再度mdファイルをコンパイルしてください．\");\n";
             code += indent+"        }\n";
+            code += indent+"        _stateDict[state] = tmpState;\n";
             code += indent+"        _stateMachine.SetupState(state,tmpState.OnEnter,tmpState.EnterRoutine,tmpState.OnExit,tmpState.ExitRoutine,tmpState.OnUpdate);\n";
             code += indent+"    }\n";
             code += indent+$"    _stateMachine.Start(StateType.{initialState});\n";
