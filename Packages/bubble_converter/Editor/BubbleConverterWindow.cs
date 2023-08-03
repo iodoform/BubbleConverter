@@ -191,7 +191,7 @@ namespace BubbleConverter
         // Helper method to extract class name using regex
         private string ExtractClassName(string content)
         {
-            string pattern = @"public\s+(?:partial\s+)?class\s+(\w+)\b";
+            string pattern = @"public\s+(?:partial\s+|static\s+)?class\s+(\w+)\b";
             Match match = Regex.Match(content, pattern);
             if (match.Success)
             {
@@ -245,10 +245,11 @@ namespace BubbleConverter
                     string fileName = Path.Combine(tmpNewFolderPath, $"{className}.cs");
                     // Create a C# script asset from the output file
                     MonoScript scriptAsset = AssetDatabase.LoadAssetAtPath<MonoScript>(fileName);
-                    if (scriptAsset != null && !stateMachineGO.GetComponent(scriptAsset.GetClass()))
+                    System.Type type = scriptAsset.GetClass();
+                    if (scriptAsset != null &&type.IsSubclassOf(typeof(MonoBehaviour))&& !stateMachineGO.GetComponent(type))
                     {
                         // Attach the script component to the "State Machine" GameObject
-                        stateMachineGO.AddComponent(scriptAsset.GetClass());
+                        stateMachineGO.AddComponent(type);
                     }
                 }
                 string name = stateMachineGO.name;

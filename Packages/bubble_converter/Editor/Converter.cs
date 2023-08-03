@@ -13,7 +13,8 @@ namespace BubbleConverter
         private Tokenizer tokenizer;
         private string initialState = null;
         private SymbolTable symbolTable;
-        private string templateFilePath = Path.Combine(System.IO.Directory.GetCurrentDirectory(), @"Packages\bubble_converter\Runtime\StateTemplate.cs");
+        private string stateTemplateFilePath = Path.Combine(System.IO.Directory.GetCurrentDirectory(), @"Packages\bubble_converter\Runtime\StateTemplate.cs");
+        private string dataCenterTemplateFilePath = Path.Combine(System.IO.Directory.GetCurrentDirectory(), @"Packages\bubble_converter\Runtime\DataCenterTemplate.cs");
         private string outputFolderPath;
         public Converter(string inputFilePath, string outputFolderPath)
         {
@@ -28,7 +29,7 @@ namespace BubbleConverter
             }
             catch (Exception ex)
             {
-                Debug.LogError(ex.Message);
+                throw new Exception(ex.Message);
             }
             tokenizer = new Tokenizer(text);
         }
@@ -47,6 +48,8 @@ namespace BubbleConverter
             {
                 resultArray.Add(CompileState(state, MakePascalCase(folderName)));
             }
+            // データセンターを生成
+            resultArray.Add(CompileDataCenter(MakePascalCase(folderName)));
             SaveSymbolTable(folderName);
             return resultArray;
         }
@@ -139,7 +142,7 @@ namespace BubbleConverter
                         }
                         else
                         {
-                            Debug.LogError("Exit status [*] cannot be used. Please replace it with another string.");
+                            throw new Exception("Exit status [*] cannot be used. Please replace it with another string.");
                         }
                     }
                     else
@@ -155,6 +158,36 @@ namespace BubbleConverter
             }
         }
 
+
+        private string CompileDataCenter(string stateMachineName)
+        {
+            //DataCenterのテンプレートファイルをもとに新しいDataCenterのクラスを作成
+
+            // ファイルが存在するか確認
+            if (!File.Exists(dataCenterTemplateFilePath))
+            {
+                throw new Exception("指定されたファイルが見つかりません: " + dataCenterTemplateFilePath);
+            }
+
+            // ファイルの内容を読み込む
+            string fileContent = File.ReadAllText(dataCenterTemplateFilePath);
+
+            // 正規表現を使って最初に出てくるnamespaceを抽出
+            Match nameMatch = Regex.Match(fileContent, @"namespace\s+(\w+)\b");
+
+            if (nameMatch.Success)
+            {
+                string currentNameSpace = nameMatch.Groups[1].Value;
+
+                // namespaceを新しいnamespaceに置き換える
+                fileContent = fileContent.Replace(currentNameSpace, stateMachineName);
+                return fileContent;
+            }
+            else
+            {
+                throw new Exception("namespaceの定義が見つかりませんでした");
+            }
+        }
         private string CompileTransition(string indent = "")
         {
             string code = indent+"// 遷移情報を登録\n";
@@ -285,14 +318,13 @@ namespace BubbleConverter
             //Stateのテンプレートファイルをもとに新しいStateのクラスを作成
 
             // ファイルが存在するか確認
-            if (!File.Exists(templateFilePath))
+            if (!File.Exists(stateTemplateFilePath))
             {
-                Debug.LogError("指定されたファイルが見つかりません: " + templateFilePath);
-                return null;
+                throw new Exception("指定されたファイルが見つかりません: " + stateTemplateFilePath);
             }
 
             // ファイルの内容を読み込む
-            string fileContent = File.ReadAllText(templateFilePath);
+            string fileContent = File.ReadAllText(stateTemplateFilePath);
 
             // 正規表現を使って最初に出てくるnamespaceを抽出
             Match nameMatch = Regex.Match(fileContent, @"namespace\s+(\w+)\b");
@@ -319,14 +351,12 @@ namespace BubbleConverter
                 }
                 else
                 {
-                    Debug.LogError("publicなclass定義が見つかりませんでした");
-                    return null;
+                    throw new Exception("publicなclass定義が見つかりませんでした");
                 }
             }
             else
             {
-                Debug.LogError("namespaceの定義が見つかりませんでした");
-                return null;
+                throw new Exception("namespaceの定義が見つかりませんでした");
             }
         }
         private string MakePascalCase(string text)
