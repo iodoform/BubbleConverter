@@ -297,7 +297,7 @@ namespace BubbleConverter
             string code = indent+"private void Start ()\n";
             code += indent+"{\n";
             code += indent+"    // StateMachineを生成\n";
-            code += indent+$"    _stateMachine = new StateMachineAssistant<StateType, TriggerType>(this, StateType.{initialState});\n";
+            code += indent+"    _stateMachine = new StateMachineAssistant<StateType, TriggerType>(this);\n";
             code += CompileTransition(indent+"    ");
             code += indent+"    // Stateを生成してふるまいを登録\n";
             code += indent+"    foreach (StateType state in Enum.GetValues(typeof(StateType)))\n";
@@ -310,6 +310,7 @@ namespace BubbleConverter
             code += indent+"        }\n";
             code += indent+"        _stateMachine.SetupState(state,tmpState.OnEnter,tmpState.EnterRoutine,tmpState.OnExit,tmpState.ExitRoutine,tmpState.OnUpdate);\n";
             code += indent+"    }\n";
+            code += indent+$"    _stateMachine.Start(StateType.{initialState});\n";
             code += indent+"}\n";
             return code;
         }

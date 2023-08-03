@@ -38,7 +38,7 @@ namespace BubbleConverter
         private Dictionary<object, StateMapping> _stateMappings = new Dictionary<object, StateMapping>();
         private Dictionary<TState, List<Transition<TState, TTrigger>>> _transitionLists = new Dictionary<TState, List<Transition<TState, TTrigger>>>();
         
-        public StateMachineAssistant(MonoBehaviour monoBehaviour, TState initialState)
+        public StateMachineAssistant(MonoBehaviour monoBehaviour)
         {
             _monoBehaviour = monoBehaviour;
 
@@ -49,9 +49,6 @@ namespace BubbleConverter
                 var mapping = new StateMapping();
                 _stateMappings.Add(enumValues.GetValue(i), mapping);
             }
-            
-            // 最初のStateに遷移
-            ChangeStateImmediately(initialState);
         }
 
         /// <summary>
@@ -121,7 +118,13 @@ namespace BubbleConverter
                 _stateMapping.onUpdate(deltaTime);
             }
         }
-        
+        ///<summary>
+        ///ステートマシンの状態を初期化して動作開始
+        ///</summary>
+        public void Start(TState initial)
+        {
+            ChangeStateImmediately(initial);
+        }
         /// <summary>
         /// Stateをただちに変更する
         /// </summary>
