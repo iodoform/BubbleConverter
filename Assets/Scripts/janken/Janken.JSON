@@ -1,0 +1,61 @@
+{
+    "triggerTable": [
+        "SaisyohaGu",
+        "HandSelected",
+        "YouWin",
+        "YouLose",
+        "ItIsADraw",
+        "LapseOfACertainTime"
+    ],
+    "stateTable": [
+        "Idle",
+        "Initialized",
+        "Showdown",
+        "Win",
+        "Lose",
+        "Draw",
+        "End"
+    ],
+    "transitionTable": [
+        {
+            "fromState": "Idle",
+            "toState": "Initialized",
+            "trigger": "SaisyohaGu"
+        },
+        {
+            "fromState": "Initialized",
+            "toState": "Showdown",
+            "trigger": "HandSelected"
+        },
+        {
+            "fromState": "Showdown",
+            "toState": "Win",
+            "trigger": "YouWin"
+        },
+        {
+            "fromState": "Showdown",
+            "toState": "Lose",
+            "trigger": "YouLose"
+        },
+        {
+            "fromState": "Showdown",
+            "toState": "Draw",
+            "trigger": "ItIsADraw"
+        },
+        {
+            "fromState": "Win",
+            "toState": "End",
+            "trigger": "LapseOfACertainTime"
+        },
+        {
+            "fromState": "Lose",
+            "toState": "End",
+            "trigger": "LapseOfACertainTime"
+        },
+        {
+            "fromState": "Draw",
+            "toState": "End",
+            "trigger": "LapseOfACertainTime"
+        }
+    ]
+}
