@@ -202,15 +202,16 @@ namespace BubbleConverter
         {
             string code = indent+"private void Update()\n";
             code += indent+"{\n";
+            code += indent+"    // ステートマシンを更新\n";
+            code += indent+"    _stateMachine.Update(Time.deltaTime);\n";
+            code += indent+"\n";
             code += indent+"    // トリガーの発火をチェック\n";
             foreach(string trigger in symbolTable.TriggerTable)
             {
                 code += indent+$"    if (trigger{char.ToUpper(trigger[0])+trigger.Substring(1)}()) _stateMachine.ExecuteTrigger(TriggerType.{trigger});\n";
             }
 
-            code += indent+"\n";
-            code += indent+"    // ステートマシンを更新\n";
-            code += indent+"    _stateMachine.Update(Time.deltaTime);\n";
+            
             code += indent+"}\n";
             return code;
         }
