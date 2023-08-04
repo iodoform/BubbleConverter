@@ -58,6 +58,9 @@ namespace Janken
         }
         private void Update()
         {
+            // ステートマシンを更新
+            _stateMachine.Update(Time.deltaTime);
+        
             // トリガーの発火をチェック
             if (triggerSaisyohaGu()) _stateMachine.ExecuteTrigger(TriggerType.SaisyohaGu);
             if (triggerHandSelected()) _stateMachine.ExecuteTrigger(TriggerType.HandSelected);
@@ -65,9 +68,6 @@ namespace Janken
             if (triggerYouLose()) _stateMachine.ExecuteTrigger(TriggerType.YouLose);
             if (triggerItIsADraw()) _stateMachine.ExecuteTrigger(TriggerType.ItIsADraw);
             if (triggerLapseOfACertainTime()) _stateMachine.ExecuteTrigger(TriggerType.LapseOfACertainTime);
-        
-            // ステートマシンを更新
-            _stateMachine.Update(Time.deltaTime);
         }
     }
 }

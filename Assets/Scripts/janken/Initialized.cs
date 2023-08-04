@@ -7,7 +7,6 @@ namespace Janken
 {
     public class Initialized : State
     {
-        public DataCenter.HandType userHand;
         ///<summary>
         ///前の状態から現在の状態に遷移してきたときの処理
         ///</summary>
@@ -42,9 +41,21 @@ namespace Janken
         ///</summary>
         public override void OnUpdate(float deltaTime)
         {
-            if(Input.GetKeyDown(KeyCode.Q)) userHand = DataCenter.HandType.STONE;
-            if(Input.GetKeyDown(KeyCode.W)) userHand = DataCenter.HandType.SCISSORS;
-            if(Input.GetKeyDown(KeyCode.E)) userHand = DataCenter.HandType.PAPER;
+            if(Input.GetKeyDown(KeyCode.Q)) 
+            {
+                DataCenter.userHand = DataCenter.HandType.STONE;
+                Debug.Log("User hand is "+DataCenter.userHand);
+            }
+            if(Input.GetKeyDown(KeyCode.W)) 
+            {
+                DataCenter.userHand = DataCenter.HandType.SCISSORS;
+                Debug.Log("User hand is "+DataCenter.userHand);
+            }
+            if(Input.GetKeyDown(KeyCode.E)) 
+            {
+                DataCenter.userHand = DataCenter.HandType.PAPER;
+                Debug.Log("User hand is "+DataCenter.userHand);
+            }
         }
     }
 }

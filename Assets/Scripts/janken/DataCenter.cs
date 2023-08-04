@@ -15,7 +15,10 @@ namespace Janken
             SCISSORS,
             PAPER
         }
-        public static float waitTime = 1f;
+        public static Dictionary<HandType,string> HandDict = new Dictionary<HandType, string>(){{HandType.STONE,"グー"},{HandType.SCISSORS,"チョキ"},{HandType.PAPER,"パー"}};
+        public static float waitTime{get;set;} = 1f;
+        public static HandType userHand{get;set;}
+        public static HandType cpuHand{get;set;}
     }
 }
 

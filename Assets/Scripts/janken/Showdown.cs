@@ -15,8 +15,9 @@ namespace Janken
         {
             //ランダムな手を選択
             int no = UnityEngine.Random.Range(0, 3);
-            cpuHand = (DataCenter.HandType)System.Enum.ToObject(typeof(DataCenter.HandType),no);
+            DataCenter.cpuHand = (DataCenter.HandType)System.Enum.ToObject(typeof(DataCenter.HandType),no);
             Debug.Log("じゃんけんポン！");
+            Debug.Log($"君：{DataCenter.HandDict[DataCenter.userHand]}相手：{DataCenter.HandDict[DataCenter.cpuHand]}");
         }
         ///<summary>
         ///前の状態から現在の状態に遷移してきたときに開始されるコルーチン

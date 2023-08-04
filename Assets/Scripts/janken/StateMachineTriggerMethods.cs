@@ -18,63 +18,57 @@ namespace Janken
         }
         private bool triggerYouWin()
         {
-            DataCenter.HandType userHand = ((Initialized)_stateDict[StateType.Initialized]).userHand;
-            DataCenter.HandType cpuHand = ((Showdown)_stateDict[StateType.Showdown]).cpuHand;
-            switch (userHand)
+            switch (DataCenter.userHand)
             {
                 case DataCenter.HandType.PAPER:
                 {
-                    return cpuHand==DataCenter.HandType.STONE;
+                    return DataCenter.cpuHand==DataCenter.HandType.STONE;
                 }
                 case DataCenter.HandType.SCISSORS:
                 {
-                    return cpuHand==DataCenter.HandType.PAPER;
+                    return DataCenter.cpuHand==DataCenter.HandType.PAPER;
                 }
                 case DataCenter.HandType.STONE:
                 {
-                    return cpuHand==DataCenter.HandType.SCISSORS;
+                    return DataCenter.cpuHand==DataCenter.HandType.SCISSORS;
                 }
                 default: return false;
             }
         }
         private bool triggerYouLose()
         {
-            DataCenter.HandType userHand = ((Initialized)_stateDict[StateType.Initialized]).userHand;
-            DataCenter.HandType cpuHand = ((Showdown)_stateDict[StateType.Showdown]).cpuHand;
-            switch (userHand)
+            switch (DataCenter.userHand)
             {
                 case DataCenter.HandType.PAPER:
                 {
-                    return cpuHand==DataCenter.HandType.SCISSORS;
+                    return DataCenter.cpuHand==DataCenter.HandType.SCISSORS;
                 }
                 case DataCenter.HandType.SCISSORS:
                 {
-                    return cpuHand==DataCenter.HandType.STONE;
+                    return DataCenter.cpuHand==DataCenter.HandType.STONE;
                 }
                 case DataCenter.HandType.STONE:
                 {
-                    return cpuHand==DataCenter.HandType.PAPER;
+                    return DataCenter.cpuHand==DataCenter.HandType.PAPER;
                 }
                 default: return false;
             }
         }
         private bool triggerItIsADraw()
         {
-            DataCenter.HandType userHand = ((Initialized)_stateDict[StateType.Initialized]).userHand;
-            DataCenter.HandType cpuHand = ((Showdown)_stateDict[StateType.Showdown]).cpuHand;
-            switch (userHand)
+            switch (DataCenter.userHand)
             {
                 case DataCenter.HandType.PAPER:
                 {
-                    return cpuHand==DataCenter.HandType.PAPER;
+                    return DataCenter.cpuHand==DataCenter.HandType.PAPER;
                 }
                 case DataCenter.HandType.SCISSORS:
                 {
-                    return cpuHand==DataCenter.HandType.SCISSORS;
+                    return DataCenter.cpuHand==DataCenter.HandType.SCISSORS;
                 }
                 case DataCenter.HandType.STONE:
                 {
-                    return cpuHand==DataCenter.HandType.STONE;
+                    return DataCenter.cpuHand==DataCenter.HandType.STONE;
                 }
                 default: return false;
             }
